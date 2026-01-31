@@ -99,8 +99,7 @@ public class SuzukiGattCallback extends BluetoothGattCallback {
             }
 
             try {
-                // Access Service[3], Characteristic[0] for writes, Characteristic[1] for
-                // notifications
+                // Access Service[3] for Suzuki BLE communication
                 if (services.size() <= 3) {
                     String error = "Not enough services! Expected at least 4, found " + services.size();
                     DebugLogger.e("GATT", error);
@@ -112,26 +111,53 @@ public class SuzukiGattCallback extends BluetoothGattCallback {
                 DebugLogger.i("GATT", "Using Service[3]: " + service.getUuid());
 
                 List<BluetoothGattCharacteristic> chars = service.getCharacteristics();
-                if (chars.size() < 2) {
-                    String error = "Service[3] doesn't have enough characteristics! Expected 2, found " + chars.size();
+                DebugLogger.i("GATT", "Service[3] has " + chars.size() + " characteristics");
+
+                // Find characteristics by properties instead of hardcoded index
+                for (BluetoothGattCharacteristic characteristic : chars) {
+                    int properties = characteristic.getProperties();
+                    String uuid = characteristic.getUuid().toString();
+
+                    DebugLogger.d("GATT", String.format("  Characteristic %s: properties=0x%02X", uuid, properties));
+
+                    // Check for WRITE property (0x08 = WRITE, 0x04 = WRITE_NO_RESPONSE)
+                    if ((properties & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0 ||
+                            (properties & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
+                        writeCharacteristic = characteristic;
+                        DebugLogger.i("GATT", "  → Found WRITE characteristic: " + uuid);
+                    }
+
+                    // Check for NOTIFY property (0x10)
+                    if ((properties & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0) {
+                        notifyCharacteristic = characteristic;
+                        DebugLogger.i("GATT", "  → Found NOTIFY characteristic: " + uuid);
+                    }
+                }
+
+                // Verify we found both characteristics
+                if (writeCharacteristic == null) {
+                    String error = "Could not find WRITE characteristic in Service[3]";
                     DebugLogger.e("GATT", error);
                     listener.onError(error);
                     return;
                 }
 
-                writeCharacteristic = chars.get(0);
-                notifyCharacteristic = chars.get(1);
+                if (notifyCharacteristic == null) {
+                    String error = "Could not find NOTIFY characteristic in Service[3]";
+                    DebugLogger.e("GATT", error);
+                    listener.onError(error);
+                    return;
+                }
 
-                DebugLogger.i("GATT", "Write Characteristic[0]: " + writeCharacteristic.getUuid());
-                DebugLogger.i("GATT", "Notify Characteristic[1]: " + notifyCharacteristic.getUuid());
+                DebugLogger.i("GATT", "✓ Found both WRITE and NOTIFY characteristics");
 
                 // Request MTU = 250
                 DebugLogger.logGattOp("requestMtu", "Requesting MTU = " + MTU_SIZE);
                 boolean result = gatt.requestMtu(MTU_SIZE);
                 DebugLogger.d("GATT", "  requestMtu() returned: " + result);
 
-            } catch (IndexOutOfBoundsException e) {
-                String error = "Service or characteristic not found at expected index";
+            } catch (Exception e) {
+                String error = "Error during service discovery: " + e.getMessage();
                 DebugLogger.e("GATT", error, e);
                 listener.onError(error);
             }

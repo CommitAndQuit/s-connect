@@ -39,7 +39,8 @@ public class MainActivity extends AppCompatActivity {
 
     // UI Elements
     private Button btnScan, btnConnect, btnDisconnect, btnClearLogs;
-    private TextView tvStatus, tvDeviceInfo, tvVehicleData;
+    private TextView tvStatus, tvDeviceInfo;
+    private TextView tvOdometer, tvTripA, tvTripB, tvGear, tvFuel;
     private EditText etUsername;
     private ListView lvLogs;
     private ScrollView svLogs;
@@ -50,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
+            DebugLogger.d("MainActivity", "Received broadcast: " + action);
+
             if (BleConnectionService.ACTION_STATE_CHANGE.equals(action)) {
                 String state = intent.getStringExtra("state");
                 updateStatus(state);
@@ -59,6 +62,10 @@ public class MainActivity extends AppCompatActivity {
                 float tripB = intent.getFloatExtra("tripB", 0);
                 char gear = (char) intent.getIntExtra("gear", 'N');
                 int fuel = intent.getIntExtra("fuelLevel", 0);
+
+                DebugLogger.i("MainActivity",
+                        String.format("Vehicle data received: ODO=%d, TripA=%.1f, TripB=%.1f, Gear=%c, Fuel=%d",
+                                odo, tripA, tripB, gear, fuel));
 
                 updateVehicleData(odo, tripA, tripB, gear, fuel);
             } else if (BleConnectionService.ACTION_ERROR.equals(action)) {
@@ -90,7 +97,14 @@ public class MainActivity extends AppCompatActivity {
 
         tvStatus = findViewById(R.id.tvStatus);
         tvDeviceInfo = findViewById(R.id.tvDeviceInfo);
-        tvVehicleData = findViewById(R.id.tvVehicleData);
+
+        // Vehicle data TextViews
+        tvOdometer = findViewById(R.id.tvOdometer);
+        tvTripA = findViewById(R.id.tvTripA);
+        tvTripB = findViewById(R.id.tvTripB);
+        tvGear = findViewById(R.id.tvGear);
+        tvFuel = findViewById(R.id.tvFuel);
+
         etUsername = findViewById(R.id.etUsername);
         lvLogs = findViewById(R.id.lvLogs);
         svLogs = findViewById(R.id.svLogs);
@@ -279,7 +293,6 @@ public class MainActivity extends AppCompatActivity {
         btnConnect.setEnabled(true);
         btnDisconnect.setEnabled(false);
         tvStatus.setText("Status: Disconnected");
-        tvVehicleData.setText("Vehicle Data: No data");
     }
 
     private void clearLogs() {
@@ -292,19 +305,6 @@ public class MainActivity extends AppCompatActivity {
     private void updateStatus(String state) {
         runOnUiThread(() -> {
             tvStatus.setText("Status: " + state);
-        });
-    }
-
-    private void updateVehicleData(int odo, float tripA, float tripB, char gear, int fuel) {
-        runOnUiThread(() -> {
-            String data = String.format(
-                    "Odometer: %d km\n" +
-                            "Trip A: %.1f km\n" +
-                            "Trip B: %.1f km\n" +
-                            "Gear: %c\n" +
-                            "Fuel: %d bars",
-                    odo, tripA, tripB, gear, fuel);
-            tvVehicleData.setText(data);
         });
     }
 
@@ -330,6 +330,23 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         unregisterReceiver(serviceReceiver);
+    }
+
+    /**
+     * Update vehicle data display with values from cluster
+     */
+    private void updateVehicleData(int odometer, float tripA, float tripB, char gear, int fuelLevel) {
+        runOnUiThread(() -> {
+            tvOdometer.setText(String.format("Odometer: %,d km", odometer));
+            tvTripA.setText(String.format("Trip A: %.1f km", tripA));
+            tvTripB.setText(String.format("Trip B: %.1f km", tripB));
+            tvGear.setText(String.format("Gear: %c", gear));
+            tvFuel.setText(String.format("Fuel: %d/6 bars", fuelLevel));
+
+            DebugLogger.i("MainActivity",
+                    String.format("Updated vehicle data: ODO=%d, TripA=%.1f, TripB=%.1f, Gear=%c, Fuel=%d",
+                            odometer, tripA, tripB, gear, fuelLevel));
+        });
     }
 
     @Override

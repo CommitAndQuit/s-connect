@@ -8,6 +8,8 @@ import android.app.Service;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -103,13 +105,20 @@ public class BleConnectionService extends Service {
 
             @Override
             public void onVehicleDataReceived(SuzukiPacketParser.VehicleData data) {
+                DebugLogger.i("Service",
+                        String.format("onVehicleDataReceived: ODO=%d, TripA=%.1f, TripB=%.1f, Gear=%c, Fuel=%d",
+                                data.odometer, data.tripA, data.tripB, data.gear, data.fuelLevel));
+
                 // Broadcast data to UI
                 Intent intent = new Intent(ACTION_VEHICLE_DATA);
+                intent.setPackage(getPackageName()); // Explicit package for internal broadcast
                 intent.putExtra("odometer", data.odometer);
                 intent.putExtra("tripA", data.tripA);
                 intent.putExtra("tripB", data.tripB);
-                intent.putExtra("gear", data.gear);
+                intent.putExtra("gear", (int) data.gear); // Cast to int for proper transmission
                 intent.putExtra("fuelLevel", data.fuelLevel);
+
+                DebugLogger.d("Service", "Sending broadcast: " + ACTION_VEHICLE_DATA);
                 sendBroadcast(intent);
 
                 updateNotification("Connected", String.format("ODO: %d km | Fuel: %d bars",
@@ -188,10 +197,65 @@ public class BleConnectionService extends Service {
         SimpleDateFormat timeFormat = new SimpleDateFormat("HHmmss", Locale.US);
         String time = timeFormat.format(new Date());
 
-        DebugLogger.d("Service", String.format("Sending heartbeat #%d (time: %s)", heartbeatCount, time));
+        // Get battery status
+        String batteryStatus = getBatteryStatus();
 
-        byte[] packet = SuzukiPacketBuilder.buildHeartbeatPacket(time, usesInvertedChecksum);
+        DebugLogger.d("Service", String.format("Sending heartbeat #%d (time: %s, battery: %s)",
+                heartbeatCount, time, batteryStatus));
+
+        byte[] packet = SuzukiPacketBuilder.buildHeartbeatPacket(batteryStatus, time, usesInvertedChecksum);
         gattCallback.writePacket(bluetoothGatt, packet);
+    }
+
+    /**
+     * Get battery status encoded as [0-3][Y/N]
+     * - First digit: 0=0-24%, 1=25-49%, 2=50-74%, 3=75-100%
+     * - Second char: Y=Charging, N=Not charging
+     */
+    private String getBatteryStatus() {
+        try {
+            IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            Intent batteryStatus = registerReceiver(null, ifilter);
+
+            if (batteryStatus != null) {
+                int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+
+                // Calculate percentage
+                float batteryPct = (level / (float) scale) * 100;
+                int batteryPercent = Math.round(batteryPct);
+
+                // Determine battery level digit (0-3)
+                String levelDigit;
+                if (batteryPercent >= 75) {
+                    levelDigit = "3";
+                } else if (batteryPercent >= 50) {
+                    levelDigit = "2";
+                } else if (batteryPercent >= 25) {
+                    levelDigit = "1";
+                } else {
+                    levelDigit = "0";
+                }
+
+                // Determine charging status (Y/N)
+                boolean isCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                        status == BatteryManager.BATTERY_STATUS_FULL);
+                String chargingChar = isCharging ? "Y" : "N";
+
+                String result = levelDigit + chargingChar;
+                DebugLogger.d("Battery", String.format("Level: %d%% -> %s (%s)",
+                        batteryPercent, result, isCharging ? "Charging" : "Not Charging"));
+
+                return result;
+            }
+        } catch (Exception e) {
+            DebugLogger.e("Battery", "Error reading battery status", e);
+        }
+
+        // Fallback to default
+        DebugLogger.w("Battery", "Using fallback battery status: 1Y");
+        return "1Y";
     }
 
     private void broadcastStateChange(String state) {

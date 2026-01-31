@@ -135,16 +135,60 @@
             android:textStyle="bold"
             android:paddingTop="16dp"/>
 
-        <TextView
-            android:id="@+id/tvVehicleData"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Vehicle Data: No data"
-            android:textSize="14sp"
+            android:orientation="vertical"
             android:padding="8dp"
             android:background="#E0E0E0"
-            android:layout_marginTop="4dp"
-            android:fontFamily="monospace"/>
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/tvOdometer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Odometer: ---"
+                android:textSize="14sp"
+                android:fontFamily="monospace"
+                android:paddingBottom="4dp"/>
+
+            <TextView
+                android:id="@+id/tvTripA"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Trip A: ---"
+                android:textSize="14sp"
+                android:fontFamily="monospace"
+                android:paddingBottom="4dp"/>
+
+            <TextView
+                android:id="@+id/tvTripB"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Trip B: ---"
+                android:textSize="14sp"
+                android:fontFamily="monospace"
+                android:paddingBottom="4dp"/>
+
+            <TextView
+                android:id="@+id/tvGear"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Gear: ---"
+                android:textSize="14sp"
+                android:fontFamily="monospace"
+                android:paddingBottom="4dp"/>
+
+            <TextView
+                android:id="@+id/tvFuel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Fuel: ---"
+                android:textSize="14sp"
+                android:fontFamily="monospace"/>
+
+        </LinearLayout>
+
 
         <!-- Debug Logs Section -->
         <TextView

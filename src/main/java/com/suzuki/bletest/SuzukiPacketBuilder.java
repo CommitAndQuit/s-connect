@@ -75,18 +75,23 @@ public class SuzukiPacketBuilder {
     /**
      * Construct Heartbeat/Status Packet (?3)
      * Sent every 1 second to maintain connection
+     * 
+     * @param batteryStatus        Battery status encoded as [0-3][Y/N]
+     * @param time                 Current time in HHmmss format
+     * @param usesInvertedChecksum Checksum type
      */
-    public static byte[] buildHeartbeatPacket(String time, boolean usesInvertedChecksum) {
+    public static byte[] buildHeartbeatPacket(String batteryStatus, String time, boolean usesInvertedChecksum) {
         DebugLogger.d("PacketBuilder", "Building ?3 heartbeat packet");
+        DebugLogger.d("PacketBuilder", "  Battery: " + batteryStatus);
         DebugLogger.d("PacketBuilder", "  Time: " + time);
         DebugLogger.d("PacketBuilder", "  Checksum: " + (usesInvertedChecksum ? "INVERTED" : "DIRECT"));
 
         byte[] packet = new byte[PACKET_SIZE];
 
         try {
-            // Format: ?3 + 1 + Y + speed(3) + signal(1) + time(6) + padding
+            // Format: ?3 + batteryStatus(2) + speed(3) + signal(1) + time(6) + padding
             // For testing, use fixed values: speed=000, signal=4
-            String payload = "?31Y0004" + time + "0000000000000000";
+            String payload = "?3" + batteryStatus + "0004" + time + "0000000000000000";
             byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
 
             System.arraycopy(payloadBytes, 0, packet, 0, Math.min(payloadBytes.length, PACKET_SIZE));
