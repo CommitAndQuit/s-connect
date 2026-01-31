@@ -1,6 +1,7 @@
 package com.suzuki.sconnect;
 
 import android.Manifest;
+import android.app.ActivityOptions;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -36,6 +37,7 @@ import com.mappls.sdk.maps.MapView;
 import com.mappls.sdk.maps.MapplsMap;
 import com.mappls.sdk.maps.OnMapReadyCallback;
 import com.mappls.sdk.maps.Style;
+import com.mappls.sdk.maps.camera.CameraPosition;
 import com.mappls.sdk.maps.camera.CameraUpdateFactory;
 import com.mappls.sdk.maps.geometry.LatLng;
 import com.mappls.sdk.maps.location.LocationComponent;
@@ -44,10 +46,6 @@ import com.mappls.sdk.maps.location.modes.CameraMode;
 import com.mappls.sdk.maps.location.modes.RenderMode;
 import com.mappls.sdk.services.account.MapplsAccountManager;
 import com.mappls.sdk.maps.Mappls;
-import com.mappls.sdk.plugins.places.autocomplete.ui.PlaceAutocompleteFragment;
-import com.mappls.sdk.plugins.places.autocomplete.ui.PlaceSelectionListener;
-import com.mappls.sdk.services.api.autosuggest.model.ELocation;
-import com.mappls.sdk.maps.annotations.MarkerOptions;
 import com.mappls.sdk.maps.location.permissions.PermissionsManager;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
@@ -104,8 +102,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         initializeViews(savedInstanceState);
         checkPermissions();
-        setupScrollAnimation();
-        setupSearch();
 
         scanner = new SuzukiBleScanner();
     }
@@ -135,6 +131,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         btnPower.setOnClickListener(v -> showDeviceSelectionSheet());
         btnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
 
+        // Open full-screen map when map preview is clicked
+        mapCard.setOnClickListener(v -> openFullScreenMap());
+
+        // Setup scroll listener to open full-screen on scroll up
+        setupScrollAnimation();
+
         // Setup Bottom Sheet
         bottomSheetDialog = new BottomSheetDialog(this);
         View sheetView = getLayoutInflater().inflate(R.layout.device_selection_sheet, null);
@@ -155,19 +157,46 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void setupScrollAnimation() {
+        final float scrollThreshold = 200f; // Scroll this many pixels to trigger full-screen
+
         nestedScrollView.setOnScrollChangeListener(
                 (NestedScrollView.OnScrollChangeListener) (v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-                    // As user scrolls down, expand the map card
-                    float maxScroll = 500f; // threshold for full expansion
-                    float progress = Math.min(scrollY / maxScroll, 1.0f);
+                    // When user scrolls up past threshold, open full-screen map
+                    if (scrollY > scrollThreshold && scrollY > oldScrollY) {
+                        // Remove listener to prevent multiple triggers
+                        nestedScrollView.setOnScrollChangeListener((NestedScrollView.OnScrollChangeListener) null);
 
-                    // Adjust map card height based on scroll
-                    ViewGroup.LayoutParams params = mapCard.getLayoutParams();
-                    int baseHeight = (int) (400 * getResources().getDisplayMetrics().density);
-                    int maxHeight = v.getHeight(); // Full screen height
-                    params.height = baseHeight + (int) ((maxHeight - baseHeight - 100) * progress);
-                    mapCard.setLayoutParams(params);
+                        // Reset scroll position
+                        nestedScrollView.post(() -> nestedScrollView.scrollTo(0, 0));
+
+                        // Open full-screen map
+                        openFullScreenMap();
+                    }
                 });
+    }
+
+    private void openFullScreenMap() {
+        Intent intent = new Intent(this, FullScreenMapActivity.class);
+
+        // Pass current map state for seamless transition
+        if (mapplsMap != null) {
+            LatLng currentPosition = mapplsMap.getCameraPosition().target;
+            double currentZoom = mapplsMap.getCameraPosition().zoom;
+            intent.putExtra("latitude", currentPosition.getLatitude());
+            intent.putExtra("longitude", currentPosition.getLongitude());
+            intent.putExtra("zoom", currentZoom);
+        }
+
+        // Shared element transition for seamless animation
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation(
+                    this,
+                    mapView,
+                    "mapTransition");
+            startActivity(intent, options.toBundle());
+        } else {
+            startActivity(intent);
+        }
     }
 
     private void showDeviceSelectionSheet() {
@@ -271,6 +300,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(MapplsMap map) {
         this.mapplsMap = map;
 
+        // Set default zoom to show ~4km x 4km area
+        LatLng defaultLocation = new LatLng(28.6139, 77.2090); // Default to Delhi
+        map.setCameraPosition(new CameraPosition.Builder()
+                .target(defaultLocation)
+                .zoom(13.0)
+                .build());
+
         map.getStyle(new Style.OnStyleLoaded() {
             @Override
             public void onStyleLoaded(@androidx.annotation.NonNull Style style) {
@@ -293,29 +329,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             locationComponent.setLocationComponentEnabled(true);
             locationComponent.setCameraMode(CameraMode.TRACKING);
             locationComponent.setRenderMode(RenderMode.COMPASS);
-        }
-    }
-
-    private void setupSearch() {
-        PlaceAutocompleteFragment autocompleteFragment = (PlaceAutocompleteFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.mappls_autocomplete_fragment);
-
-        if (autocompleteFragment != null) {
-            autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
-                @Override
-                public void onPlaceSelected(ELocation eLocation) {
-                    if (mapplsMap != null && eLocation != null && eLocation.latitude != null
-                            && eLocation.longitude != null) {
-                        LatLng latLng = new LatLng(eLocation.latitude, eLocation.longitude);
-                        mapplsMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14.0));
-                        mapplsMap.addMarker(new MarkerOptions().position(latLng).title(eLocation.placeName));
-                    }
-                }
-
-                @Override
-                public void onCancel() {
-                }
-            });
         }
     }
 
@@ -368,5 +381,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         } else {
             registerReceiver(serviceReceiver, filter);
         }
+
+        // Re-enable scroll listener when returning from full-screen map
+        setupScrollAnimation();
     }
 }
