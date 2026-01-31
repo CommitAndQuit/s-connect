@@ -35,7 +35,26 @@ import com.mappls.sdk.services.api.autosuggest.MapplsAutoSuggest;
 import com.mappls.sdk.services.api.autosuggest.MapplsAutosuggestManager;
 import com.mappls.sdk.services.api.autosuggest.model.AutoSuggestAtlasResponse;
 import com.mappls.sdk.services.api.autosuggest.model.ELocation;
+import com.mappls.sdk.services.api.directions.DirectionsCriteria;
+import com.mappls.sdk.services.api.directions.MapplsDirectionManager;
+import com.mappls.sdk.services.api.directions.MapplsDirections;
+import com.mappls.sdk.services.api.directions.models.DirectionsResponse;
+import com.mappls.sdk.services.api.directions.models.DirectionsRoute;
+import com.mappls.sdk.geojson.Point;
+import com.mappls.sdk.geojson.LineString;
+import com.mappls.sdk.geojson.Feature;
+import com.mappls.sdk.geojson.FeatureCollection;
+import com.mappls.sdk.maps.style.sources.GeoJsonSource;
+import com.mappls.sdk.maps.style.layers.LineLayer;
+import com.mappls.sdk.maps.style.layers.PropertyFactory;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 
+import android.app.AlertDialog;
+import android.graphics.Color;
+import android.widget.TextView;
+import android.widget.Button;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class FullScreenMapActivity extends AppCompatActivity implements OnMapReadyCallback {
@@ -48,6 +67,13 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
     private RecyclerView rvSearchResults;
     private FloatingActionButton fabCenterLocation;
     private SearchResultAdapter searchResultAdapter;
+
+    // Navigation fields
+    private DirectionsRoute currentRoute;
+    private BottomSheetDialog navigationBottomSheet;
+    private LatLng destinationMarker;
+    private static final String ROUTE_SOURCE_ID = "route-source";
+    private static final String ROUTE_LAYER_ID = "route-layer";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,6 +147,18 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
             @Override
             public void onStyleLoaded(@NonNull Style style) {
                 enableLocationComponent(style);
+
+                // Initialize route source and layer for drawing routes
+                initializeRouteLayer(style);
+            }
+        });
+
+        // Add pin drop on long press
+        map.addOnMapLongClickListener(new MapplsMap.OnMapLongClickListener() {
+            @Override
+            public boolean onMapLongClick(@NonNull LatLng point) {
+                showPinDropDialog(point);
+                return true;
             }
         });
     }
@@ -195,17 +233,13 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
     private void onSearchResultClick(ELocation location) {
         if (mapplsMap != null && location != null && location.latitude != null && location.longitude != null) {
             LatLng latLng = new LatLng(location.latitude, location.longitude);
-            mapplsMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15.0));
 
-            // Clear existing markers and add new one
-            mapplsMap.clear();
-            mapplsMap.addMarker(new MarkerOptions()
-                    .position(latLng)
-                    .title(location.placeName));
-
-            // Hide search results and clear search
+            // Hide search results
             searchResultsCard.setVisibility(View.GONE);
-            etSearch.setText(location.placeName);
+            etSearch.setText("");
+
+            // Show dialog with navigation option
+            showDestinationDialog(latLng, location.placeName);
             etSearch.clearFocus();
         }
     }
@@ -261,5 +295,198 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
     protected void onResume() {
         super.onResume();
         mapView.onResume();
+    }
+
+    // Navigation Methods
+
+    private void showPinDropDialog(LatLng point) {
+        new AlertDialog.Builder(this)
+                .setTitle("Drop Pin")
+                .setMessage("Navigate to this location?")
+                .setPositiveButton("Navigate", (dialog, which) -> {
+                    // Add marker at pin location
+                    mapplsMap.clear();
+                    mapplsMap.addMarker(new MarkerOptions()
+                            .position(point)
+                            .title("Dropped Pin"));
+
+                    destinationMarker = point;
+                    fetchDirections(point);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showDestinationDialog(LatLng destination, String placeName) {
+        new AlertDialog.Builder(this)
+                .setTitle(placeName)
+                .setMessage("What would you like to do?")
+                .setPositiveButton("Navigate", (dialog, which) -> {
+                    // Navigate to this location
+                    mapplsMap.clear();
+                    mapplsMap.addMarker(new MarkerOptions()
+                            .position(destination)
+                            .title(placeName));
+
+                    destinationMarker = destination;
+                    fetchDirections(destination);
+                })
+                .setNeutralButton("Show on Map", (dialog, which) -> {
+                    // Just show the location
+                    mapplsMap.animateCamera(CameraUpdateFactory.newLatLngZoom(destination, 15.0));
+                    mapplsMap.addMarker(new MarkerOptions()
+                            .position(destination)
+                            .title(placeName));
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void fetchDirections(LatLng destination) {
+        LocationComponent locationComponent = mapplsMap.getLocationComponent();
+        if (locationComponent == null || !locationComponent.isLocationComponentEnabled()) {
+            // Location unavailable
+            return;
+        }
+
+        Location lastLocation = locationComponent.getLastKnownLocation();
+        if (lastLocation == null) {
+            return;
+        }
+
+        Point origin = Point.fromLngLat(lastLocation.getLongitude(), lastLocation.getLatitude());
+        Point dest = Point.fromLngLat(destination.getLongitude(), destination.getLatitude());
+
+        MapplsDirections directions = MapplsDirections.builder()
+                .origin(origin)
+                .destination(dest)
+                .profile("biking") // 2-wheeler profile
+                .resource(DirectionsCriteria.RESOURCE_ROUTE_ETA)
+                .overview("full")
+                .steps(true)
+                .annotations(DirectionsCriteria.ANNOTATION_CONGESTION,
+                        DirectionsCriteria.ANNOTATION_DURATION)
+                .build();
+
+        MapplsDirectionManager.newInstance(directions).call(new OnResponseCallback<DirectionsResponse>() {
+            @Override
+            public void onSuccess(DirectionsResponse response) {
+                if (response != null && response.routes() != null && !response.routes().isEmpty()) {
+                    currentRoute = response.routes().get(0);
+                    displayRoute(currentRoute, new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude()),
+                            destination);
+                    showNavigationBottomSheet(currentRoute);
+                }
+            }
+
+            @Override
+            public void onError(int errorCode, String error) {
+                // Handle error - could show toast
+            }
+        });
+    }
+
+    private void displayRoute(DirectionsRoute route, LatLng origin, LatLng destination) {
+        if (mapplsMap == null || route.geometry() == null) {
+            return;
+        }
+
+        mapplsMap.getStyle(new Style.OnStyleLoaded() {
+            @Override
+            public void onStyleLoaded(@NonNull Style style) {
+                GeoJsonSource source = style.getSourceAs(ROUTE_SOURCE_ID);
+                if (source == null) {
+                    return;
+                }
+
+                // Create LineString from route geometry
+                LineString lineString = LineString.fromPolyline(route.geometry(), 6);
+                Feature feature = Feature.fromGeometry(lineString);
+                FeatureCollection featureCollection = FeatureCollection.fromFeature(feature);
+
+                // Update the source
+                source.setGeoJson(featureCollection);
+
+                // Add start and end markers
+                mapplsMap.addMarker(new MarkerOptions()
+                        .position(origin)
+                        .title("Start"));
+
+                mapplsMap.addMarker(new MarkerOptions()
+                        .position(destination)
+                        .title("Destination"));
+
+                // Adjust camera to show entire route
+                mapplsMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                        new LatLng((origin.getLatitude() + destination.getLatitude()) / 2,
+                                (origin.getLongitude() + destination.getLongitude()) / 2),
+                        12.0));
+            }
+        });
+    }
+
+    private void showNavigationBottomSheet(DirectionsRoute route) {
+        View sheetView = getLayoutInflater().inflate(R.layout.navigation_bottom_sheet, null);
+        navigationBottomSheet = new BottomSheetDialog(this);
+        navigationBottomSheet.setContentView(sheetView);
+
+        TextView tvDistance = sheetView.findViewById(R.id.tvDistance);
+        TextView tvEta = sheetView.findViewById(R.id.tvEta);
+        Button btnStartNavigation = sheetView.findViewById(R.id.btnStartNavigation);
+        Button btnCancel = sheetView.findViewById(R.id.btnCancelNavigation);
+
+        // Format distance (meters to km)
+        double distanceKm = route.distance() / 1000.0;
+        tvDistance.setText(String.format("%.1f km", distanceKm));
+
+        // Format duration (seconds to minutes)
+        int durationMinutes = (int) (route.duration() / 60.0);
+        tvEta.setText(String.format("%d min", durationMinutes));
+
+        btnStartNavigation.setOnClickListener(v -> {
+            // TODO: Start turn-by-turn navigation if needed
+            navigationBottomSheet.dismiss();
+        });
+
+        btnCancel.setOnClickListener(v -> {
+            clearRoute();
+            navigationBottomSheet.dismiss();
+        });
+
+        navigationBottomSheet.show();
+    }
+
+    private void initializeRouteLayer(Style style) {
+        // Add a GeoJSON source for the route
+        GeoJsonSource routeSource = new GeoJsonSource(ROUTE_SOURCE_ID);
+        style.addSource(routeSource);
+
+        // Add a line layer for drawing the route
+        LineLayer routeLayer = new LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID);
+        routeLayer.setProperties(
+                PropertyFactory.lineColor(Color.parseColor("#3b7dd6")),
+                PropertyFactory.lineWidth(5f),
+                PropertyFactory.lineCap("round"),
+                PropertyFactory.lineJoin("round"));
+        style.addLayer(routeLayer);
+    }
+
+    private void clearRoute() {
+        if (mapplsMap == null) {
+            return;
+        }
+
+        mapplsMap.getStyle(new Style.OnStyleLoaded() {
+            @Override
+            public void onStyleLoaded(@NonNull Style style) {
+                GeoJsonSource source = style.getSourceAs(ROUTE_SOURCE_ID);
+                if (source != null) {
+                    source.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>()));
+                }
+            }
+        });
+
+        currentRoute = null;
+        mapplsMap.clear();
     }
 }
