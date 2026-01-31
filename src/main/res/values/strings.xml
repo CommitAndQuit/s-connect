@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">S-Connect</string>
+    <string name="mappls_client_id">96dHZVzsAuuT8oUDMjGorhqqZsTdFuqEZnXrDZ721dDy436xdDs9ZpAQdzTWGB3srnIlrTmSoYKbyUmsR1TWfg==</string>
+    <string name="mappls_client_secret">lrFxI-iSEg9SB4lLk5U7V08DI3tRIc6UwMMTgk77-5wll-XpScU2wKClGS1vI4Fm1JWj10x2jsw9pVNQ2aT-rYp8vRfgl_hI</string>
+    <string name="mappls_map_sdk_key">542ceea51a187c2ee2debc09a63a824d</string>
+    <string name="mappls_rest_api_key">542ceea51a187c2ee2debc09a63a824d</string>
 </resources>

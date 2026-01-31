@@ -1,4 +1,4 @@
-package com.suzuki.bletest;
+package com.suzuki.sconnect;
 
 import android.bluetooth.BluetoothDevice;
 import android.view.LayoutInflater;

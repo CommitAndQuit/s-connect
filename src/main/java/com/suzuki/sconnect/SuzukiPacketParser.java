@@ -1,4 +1,4 @@
-package com.suzuki.bletest;
+package com.suzuki.sconnect;
 
 import java.nio.charset.StandardCharsets;
 

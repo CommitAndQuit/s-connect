@@ -1,4 +1,4 @@
-package com.suzuki.bletest;
+package com.suzuki.sconnect;
 
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
@@ -32,7 +32,25 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+import com.mappls.sdk.maps.MapView;
+import com.mappls.sdk.maps.MapplsMap;
+import com.mappls.sdk.maps.OnMapReadyCallback;
+import com.mappls.sdk.maps.Style;
+import com.mappls.sdk.maps.camera.CameraUpdateFactory;
+import com.mappls.sdk.maps.geometry.LatLng;
+import com.mappls.sdk.maps.location.LocationComponent;
+import com.mappls.sdk.maps.location.LocationComponentActivationOptions;
+import com.mappls.sdk.maps.location.modes.CameraMode;
+import com.mappls.sdk.maps.location.modes.RenderMode;
+import com.mappls.sdk.services.account.MapplsAccountManager;
+import com.mappls.sdk.maps.Mappls;
+import com.mappls.sdk.plugins.places.autocomplete.ui.PlaceAutocompleteFragment;
+import com.mappls.sdk.plugins.places.autocomplete.ui.PlaceSelectionListener;
+import com.mappls.sdk.services.api.autosuggest.model.ELocation;
+import com.mappls.sdk.maps.annotations.MarkerOptions;
+import com.mappls.sdk.maps.location.permissions.PermissionsManager;
+
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final int REQUEST_PERMISSIONS = 100;
 
     private SuzukiBleScanner scanner;
@@ -43,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvDeviceName, tvOdoValue, tvFuelValue, tvGearValue, tvTripAValue, tvTripBValue;
     private ImageView ivBluetoothStatus;
     private View mapCard;
+    private MapView mapView;
+    private MapplsMap mapplsMap;
     private NestedScrollView nestedScrollView;
 
     // Device Selection Sheet
@@ -72,16 +92,25 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Initialize Mappls SDK
+        MapplsAccountManager.getInstance().setRestAPIKey(getString(R.string.mappls_rest_api_key));
+        MapplsAccountManager.getInstance().setMapSDKKey(getString(R.string.mappls_map_sdk_key));
+        MapplsAccountManager.getInstance().setAtlasClientId(getString(R.string.mappls_client_id));
+        MapplsAccountManager.getInstance().setAtlasClientSecret(getString(R.string.mappls_client_secret));
+        Mappls.getInstance(this);
+
         setContentView(R.layout.activity_main);
 
-        initializeViews();
+        initializeViews(savedInstanceState);
         checkPermissions();
         setupScrollAnimation();
+        setupSearch();
 
         scanner = new SuzukiBleScanner();
     }
 
-    private void initializeViews() {
+    private void initializeViews(Bundle savedInstanceState) {
         btnPower = findViewById(R.id.btnPower);
         btnSettings = findViewById(R.id.btnSettings);
         tvDeviceName = findViewById(R.id.tvDeviceName);
@@ -92,6 +121,15 @@ public class MainActivity extends AppCompatActivity {
         tvTripBValue = findViewById(R.id.tvTripBValue);
         ivBluetoothStatus = findViewById(R.id.ivBluetoothStatus);
         mapCard = findViewById(R.id.mapCard);
+        mapView = findViewById(R.id.map_view);
+
+        if (savedInstanceState != null) {
+            mapView.onCreate(savedInstanceState);
+        } else {
+            mapView.onCreate(null);
+        }
+        mapView.getMapAsync(this);
+
         nestedScrollView = findViewById(R.id.nestedScrollView);
 
         btnPower.setOnClickListener(v -> showDeviceSelectionSheet());
@@ -230,8 +268,98 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onMapReady(MapplsMap map) {
+        this.mapplsMap = map;
+
+        map.getStyle(new Style.OnStyleLoaded() {
+            @Override
+            public void onStyleLoaded(@androidx.annotation.NonNull Style style) {
+                enableLocationComponent(style);
+            }
+        });
+    }
+
+    @Override
+    public void onMapError(int errorCode, String errorMessage) {
+        // Handle map error
+    }
+
+    private void enableLocationComponent(Style style) {
+        if (PermissionsManager.areLocationPermissionsGranted(this)) {
+            LocationComponent locationComponent = mapplsMap.getLocationComponent();
+            LocationComponentActivationOptions options = LocationComponentActivationOptions.builder(this, style)
+                    .build();
+            locationComponent.activateLocationComponent(options);
+            locationComponent.setLocationComponentEnabled(true);
+            locationComponent.setCameraMode(CameraMode.TRACKING);
+            locationComponent.setRenderMode(RenderMode.COMPASS);
+        }
+    }
+
+    private void setupSearch() {
+        PlaceAutocompleteFragment autocompleteFragment = (PlaceAutocompleteFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.mappls_autocomplete_fragment);
+
+        if (autocompleteFragment != null) {
+            autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
+                @Override
+                public void onPlaceSelected(ELocation eLocation) {
+                    if (mapplsMap != null && eLocation != null && eLocation.latitude != null
+                            && eLocation.longitude != null) {
+                        LatLng latLng = new LatLng(eLocation.latitude, eLocation.longitude);
+                        mapplsMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14.0));
+                        mapplsMap.addMarker(new MarkerOptions().position(latLng).title(eLocation.placeName));
+                    }
+                }
+
+                @Override
+                public void onCancel() {
+                }
+            });
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mapView.onStart();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mapView.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mapView.onDestroy();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        mapView.onSaveInstanceState(outState);
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        mapView.onLowMemory();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mapView.onPause();
+        unregisterReceiver(serviceReceiver);
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        mapView.onResume();
         IntentFilter filter = new IntentFilter();
         filter.addAction(BleConnectionService.ACTION_STATE_CHANGE);
         filter.addAction(BleConnectionService.ACTION_VEHICLE_DATA);
@@ -240,11 +368,5 @@ public class MainActivity extends AppCompatActivity {
         } else {
             registerReceiver(serviceReceiver, filter);
         }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        unregisterReceiver(serviceReceiver);
     }
 }

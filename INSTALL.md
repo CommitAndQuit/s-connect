@@ -9,7 +9,7 @@ Android won't update the app properly if you just install over it - you MUST uni
 
 ### Step 1: Uninstall
 ```bash
-adb uninstall com.suzuki.bletest
+adb uninstall com.suzuki.sconnect
 ```
 
 You should see:
@@ -31,7 +31,7 @@ Success
 ### Step 3: Verify
 Check the app version:
 ```bash
-adb shell dumpsys package com.suzuki.bletest | grep versionName
+adb shell dumpsys package com.suzuki.sconnect | grep versionName
 ```
 
 ## Why This Happens

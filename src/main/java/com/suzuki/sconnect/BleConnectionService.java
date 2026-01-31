@@ -1,4 +1,4 @@
-package com.suzuki.bletest;
+package com.suzuki.sconnect;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -28,9 +28,9 @@ public class BleConnectionService extends Service {
     private static final String CHANNEL_ID = "BLE_DEBUG_CHANNEL";
     private static final int NOTIFICATION_ID = 1001;
 
-    public static final String ACTION_STATE_CHANGE = "com.suzuki.bletest.STATE_CHANGE";
-    public static final String ACTION_VEHICLE_DATA = "com.suzuki.bletest.VEHICLE_DATA";
-    public static final String ACTION_ERROR = "com.suzuki.bletest.ERROR";
+    public static final String ACTION_STATE_CHANGE = "com.suzuki.sconnect.STATE_CHANGE";
+    public static final String ACTION_VEHICLE_DATA = "com.suzuki.sconnect.VEHICLE_DATA";
+    public static final String ACTION_ERROR = "com.suzuki.sconnect.ERROR";
 
     private BluetoothGatt bluetoothGatt;
     private SuzukiGattCallback gattCallback;
