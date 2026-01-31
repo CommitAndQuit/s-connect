@@ -289,7 +289,7 @@ public class BleConnectionService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Suzuki BLE: " + title)
+                .setContentTitle("S-Connect: " + title)
                 .setContentText(content)
                 .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
                 .setContentIntent(pendingIntent)

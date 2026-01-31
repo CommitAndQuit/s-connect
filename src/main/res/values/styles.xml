@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base Application Theme -->
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/accent_blue</item>
+        <item name="colorPrimaryDark">@color/background_primary</item>
+        <item name="colorAccent">@color/accent_blue_light</item>
+        <item name="android:windowBackground">@color/background_primary</item>
+        <item name="android:statusBarColor">@color/background_primary</item>
+        <item name="android:navigationBarColor">@color/background_primary</item>
+        <item name="bottomSheetDialogTheme">@style/CustomBottomSheetDialog</item>
+    </style>
+
+    <style name="CustomBottomSheetDialog" parent="Theme.Design.Light.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/CustomBottomSheetStyle</item>
+    </style>
+
+    <style name="CustomBottomSheetStyle" parent="Widget.Design.BottomSheet.Modal">
+        <item name="android:background">@android:color/transparent</item>
+    </style>
+    
+    <!-- Glassmorphic Card Style -->
+    <style name="GlassCard">
+        <item name="android:background">@drawable/card_background</item>
+        <item name="android:elevation">8dp</item>
+    </style>
+    
+    <!-- Text Styles -->
+    <style name="TextPrimary">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+    
+    <style name="TextSecondary">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+    
+    <style name="TextLarge" parent="TextPrimary">
+        <item name="android:textSize">48sp</item>
+        <item name="android:fontFamily">sans-serif-black</item>
+    </style>
+    
+    <style name="TextMedium" parent="TextPrimary">
+        <item name="android:textSize">18sp</item>
+    </style>
+    
+    <style name="TextSmall" parent="TextSecondary">
+        <item name="android:textSize">12sp</item>
+    </style>
+</resources>

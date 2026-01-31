@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    
+    <!-- Glassmorphic gradient background -->
+    <gradient
+        android:angle="135"
+        android:startColor="#4D2A2F3E"
+        android:centerColor="#662A2F3E"
+        android:endColor="#4D1A1F2E"
+        android:type="linear" />
+    
+    <!-- Subtle border for glass effect -->
+    <stroke
+        android:width="1dp"
+        android:color="@color/glass_border" />
+    
+    <!-- Rounded corners -->
+    <corners android:radius="24dp" />
+</shape>

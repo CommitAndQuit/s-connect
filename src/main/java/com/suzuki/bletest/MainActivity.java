@@ -9,53 +9,54 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ListView;
-import android.widget.ScrollView;
+import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.NestedScrollView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Main Activity with comprehensive debug UI
- */
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_PERMISSIONS = 100;
 
     private SuzukiBleScanner scanner;
     private BluetoothDevice selectedDevice;
-    private String selectedDeviceName;
 
     // UI Elements
-    private Button btnScan, btnConnect, btnDisconnect, btnClearLogs;
-    private TextView tvStatus, tvDeviceInfo;
-    private TextView tvOdometer, tvTripA, tvTripB, tvGear, tvFuel;
-    private EditText etUsername;
-    private ListView lvLogs;
-    private ScrollView svLogs;
-    private ArrayAdapter<String> logAdapter;
-    private List<String> logList = new ArrayList<>();
+    private ImageButton btnPower, btnSettings;
+    private TextView tvDeviceName, tvOdoValue, tvFuelValue, tvGearValue, tvTripAValue, tvTripBValue;
+    private ImageView ivBluetoothStatus;
+    private View mapCard;
+    private NestedScrollView nestedScrollView;
+
+    // Device Selection Sheet
+    private BottomSheetDialog bottomSheetDialog;
+    private DeviceAdapter deviceAdapter;
+    private List<BluetoothDevice> discoveredDevices = new ArrayList<>();
 
     private BroadcastReceiver serviceReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            DebugLogger.d("MainActivity", "Received broadcast: " + action);
-
             if (BleConnectionService.ACTION_STATE_CHANGE.equals(action)) {
                 String state = intent.getStringExtra("state");
-                updateStatus(state);
+                updateConnectionUI(state);
             } else if (BleConnectionService.ACTION_VEHICLE_DATA.equals(action)) {
                 int odo = intent.getIntExtra("odometer", 0);
                 float tripA = intent.getFloatExtra("tripA", 0);
@@ -63,14 +64,7 @@ public class MainActivity extends AppCompatActivity {
                 char gear = (char) intent.getIntExtra("gear", 'N');
                 int fuel = intent.getIntExtra("fuelLevel", 0);
 
-                DebugLogger.i("MainActivity",
-                        String.format("Vehicle data received: ODO=%d, TripA=%.1f, TripB=%.1f, Gear=%c, Fuel=%d",
-                                odo, tripA, tripB, gear, fuel));
-
                 updateVehicleData(odo, tripA, tripB, gear, fuel);
-            } else if (BleConnectionService.ACTION_ERROR.equals(action)) {
-                String error = intent.getStringExtra("error");
-                Toast.makeText(MainActivity.this, "Error: " + error, Toast.LENGTH_LONG).show();
             }
         }
     };
@@ -80,245 +74,167 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        DebugLogger.i("MainActivity", "=== App Started ===");
-
         initializeViews();
-        setupLogListener();
         checkPermissions();
+        setupScrollAnimation();
 
         scanner = new SuzukiBleScanner();
     }
 
     private void initializeViews() {
-        btnScan = findViewById(R.id.btnScan);
-        btnConnect = findViewById(R.id.btnConnect);
-        btnDisconnect = findViewById(R.id.btnDisconnect);
-        btnClearLogs = findViewById(R.id.btnClearLogs);
+        btnPower = findViewById(R.id.btnPower);
+        btnSettings = findViewById(R.id.btnSettings);
+        tvDeviceName = findViewById(R.id.tvDeviceName);
+        tvOdoValue = findViewById(R.id.tvOdoValue);
+        tvFuelValue = findViewById(R.id.tvFuelValue);
+        tvGearValue = findViewById(R.id.tvGearValue);
+        tvTripAValue = findViewById(R.id.tvTripAValue);
+        tvTripBValue = findViewById(R.id.tvTripBValue);
+        ivBluetoothStatus = findViewById(R.id.ivBluetoothStatus);
+        mapCard = findViewById(R.id.mapCard);
+        nestedScrollView = findViewById(R.id.nestedScrollView);
 
-        tvStatus = findViewById(R.id.tvStatus);
-        tvDeviceInfo = findViewById(R.id.tvDeviceInfo);
+        btnPower.setOnClickListener(v -> showDeviceSelectionSheet());
+        btnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
 
-        // Vehicle data TextViews
-        tvOdometer = findViewById(R.id.tvOdometer);
-        tvTripA = findViewById(R.id.tvTripA);
-        tvTripB = findViewById(R.id.tvTripB);
-        tvGear = findViewById(R.id.tvGear);
-        tvFuel = findViewById(R.id.tvFuel);
+        // Setup Bottom Sheet
+        bottomSheetDialog = new BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.device_selection_sheet, null);
+        bottomSheetDialog.setContentView(sheetView);
 
-        etUsername = findViewById(R.id.etUsername);
-        lvLogs = findViewById(R.id.lvLogs);
-        svLogs = findViewById(R.id.svLogs);
+        RecyclerView rvDevices = sheetView.findViewById(R.id.rvDevices);
+        ProgressBar pbScanning = sheetView.findViewById(R.id.pbScanning);
+        sheetView.findViewById(R.id.btnCancelScan).setOnClickListener(v -> bottomSheetDialog.dismiss());
 
-        logAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, logList);
-        lvLogs.setAdapter(logAdapter);
-
-        btnScan.setOnClickListener(v -> startScan());
-        btnConnect.setOnClickListener(v -> connectToVehicle());
-        btnDisconnect.setOnClickListener(v -> disconnectFromVehicle());
-        btnClearLogs.setOnClickListener(v -> clearLogs());
-
-        btnConnect.setEnabled(false);
-        btnDisconnect.setEnabled(false);
-
-        etUsername.setText("TEST");
-    }
-
-    private void setupLogListener() {
-        // Track if user has manually scrolled up
-        final boolean[] userScrolledUp = { false };
-
-        lvLogs.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
-                // When user stops scrolling, check if they're at the bottom
-                if (scrollState == SCROLL_STATE_IDLE) {
-                    int lastVisiblePosition = view.getLastVisiblePosition();
-                    int totalItems = logAdapter.getCount();
-                    userScrolledUp[0] = (lastVisiblePosition < totalItems - 1);
-                }
-            }
-
-            @Override
-            public void onScroll(android.widget.AbsListView view, int firstVisibleItem,
-                    int visibleItemCount, int totalItemCount) {
-                // Check if user is at bottom
-                int lastVisiblePosition = firstVisibleItem + visibleItemCount;
-                userScrolledUp[0] = (lastVisiblePosition < totalItemCount);
-            }
+        deviceAdapter = new DeviceAdapter(discoveredDevices, device -> {
+            selectedDevice = device;
+            connectToVehicle(device);
+            bottomSheetDialog.dismiss();
         });
 
-        DebugLogger.setListener(entry -> runOnUiThread(() -> {
-            logList.add(entry.toString());
-            if (logList.size() > 200) {
-                logList.remove(0);
-            }
-            logAdapter.notifyDataSetChanged();
-
-            // Only auto-scroll if user hasn't manually scrolled up
-            if (!userScrolledUp[0]) {
-                lvLogs.smoothScrollToPosition(logList.size() - 1);
-            }
-        }));
-
-        // Add existing logs
-        for (DebugLogger.LogEntry entry : DebugLogger.getAllLogs()) {
-            logList.add(entry.toString());
-        }
-        logAdapter.notifyDataSetChanged();
+        rvDevices.setLayoutManager(new LinearLayoutManager(this));
+        rvDevices.setAdapter(deviceAdapter);
     }
 
-    private void checkPermissions() {
-        List<String> permissions = new ArrayList<>();
+    private void setupScrollAnimation() {
+        nestedScrollView.setOnScrollChangeListener(
+                (NestedScrollView.OnScrollChangeListener) (v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+                    // As user scrolls down, expand the map card
+                    float maxScroll = 500f; // threshold for full expansion
+                    float progress = Math.min(scrollY / maxScroll, 1.0f);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12+
-            if (ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.BLUETOOTH_SCAN);
-            }
-            if (ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.BLUETOOTH_CONNECT);
-            }
-            // Location permission still needed for foreground service
-            if (ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
-            }
-        } else {
-            // Android < 12
-            if (ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
-            }
-        }
-
-        if (!permissions.isEmpty()) {
-            DebugLogger.w("Permissions", "Requesting permissions: " + permissions);
-            ActivityCompat.requestPermissions(this,
-                    permissions.toArray(new String[0]), REQUEST_PERMISSIONS);
-        } else {
-            DebugLogger.i("Permissions", "All permissions granted");
-        }
+                    // Adjust map card height based on scroll
+                    ViewGroup.LayoutParams params = mapCard.getLayoutParams();
+                    int baseHeight = (int) (400 * getResources().getDisplayMetrics().density);
+                    int maxHeight = v.getHeight(); // Full screen height
+                    params.height = baseHeight + (int) ((maxHeight - baseHeight - 100) * progress);
+                    mapCard.setLayoutParams(params);
+                });
     }
 
-    private void startScan() {
-        DebugLogger.i("MainActivity", "User clicked SCAN");
+    private void showDeviceSelectionSheet() {
+        discoveredDevices.clear();
+        deviceAdapter.notifyDataSetChanged();
+        bottomSheetDialog.show();
 
-        // Check if Bluetooth is enabled
-        BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
-
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Toast.makeText(this, "Please enable Bluetooth", Toast.LENGTH_SHORT).show();
-            DebugLogger.e("MainActivity", "Bluetooth not enabled");
-            return;
-        }
-
-        btnScan.setEnabled(false);
-        btnScan.setText("Scanning...");
-        tvStatus.setText("Status: Scanning for devices...");
-        tvDeviceInfo.setText("Device: None");
+        ProgressBar pb = bottomSheetDialog.findViewById(R.id.pbScanning);
+        if (pb != null)
+            pb.setVisibility(View.VISIBLE);
 
         scanner.startScan(this, new SuzukiBleScanner.ScanResultListener() {
             @Override
             public void onDeviceFound(BluetoothDevice device, String deviceName, int rssi) {
                 runOnUiThread(() -> {
-                    selectedDevice = device;
-                    selectedDeviceName = deviceName;
-
-                    tvDeviceInfo.setText(String.format("Device: %s\nAddress: %s\nRSSI: %d dBm",
-                            deviceName, device.getAddress(), rssi));
-
-                    btnConnect.setEnabled(true);
-                    tvStatus.setText("Status: Device found!");
-
-                    Toast.makeText(MainActivity.this, "Found: " + deviceName, Toast.LENGTH_SHORT).show();
+                    if (!discoveredDevices.contains(device)) {
+                        discoveredDevices.add(device);
+                        deviceAdapter.notifyDataSetChanged();
+                    }
                 });
             }
 
             @Override
             public void onScanComplete() {
                 runOnUiThread(() -> {
-                    btnScan.setEnabled(true);
-                    btnScan.setText("Scan for Devices");
-
-                    if (selectedDevice == null) {
-                        tvStatus.setText("Status: No Suzuki devices found");
-                        Toast.makeText(MainActivity.this, "No Suzuki devices found", Toast.LENGTH_SHORT).show();
-                    }
+                    if (pb != null)
+                        pb.setVisibility(View.GONE);
                 });
             }
         });
     }
 
-    private void connectToVehicle() {
-        if (selectedDevice == null) {
-            Toast.makeText(this, "No device selected", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    private void connectToVehicle(BluetoothDevice device) {
+        tvDeviceName.setText("Connecting...");
+        ivBluetoothStatus.setAlpha(0.5f);
 
-        String username = etUsername.getText().toString().trim();
-        if (username.isEmpty()) {
-            Toast.makeText(this, "Please enter a username", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        DebugLogger.i("MainActivity", "User clicked CONNECT");
-        DebugLogger.i("MainActivity", "Starting BLE service...");
-
-        // Start BLE service
         Intent serviceIntent = new Intent(this, BleConnectionService.class);
-        serviceIntent.putExtra("device", selectedDevice);
-        serviceIntent.putExtra("deviceName", selectedDeviceName);
-        serviceIntent.putExtra("userName", username);
+        serviceIntent.putExtra("device", device);
+        serviceIntent.putExtra("deviceName", device.getName());
+        serviceIntent.putExtra("userName", "USER"); // Default username for welcome message
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent);
         } else {
             startService(serviceIntent);
         }
-
-        btnConnect.setEnabled(false);
-        btnDisconnect.setEnabled(true);
-        tvStatus.setText("Status: Connecting...");
     }
 
-    private void disconnectFromVehicle() {
-        DebugLogger.i("MainActivity", "User clicked DISCONNECT");
-
-        Intent serviceIntent = new Intent(this, BleConnectionService.class);
-        stopService(serviceIntent);
-
-        btnConnect.setEnabled(true);
-        btnDisconnect.setEnabled(false);
-        tvStatus.setText("Status: Disconnected");
-    }
-
-    private void clearLogs() {
-        DebugLogger.clearLogs();
-        logList.clear();
-        logAdapter.notifyDataSetChanged();
-        Toast.makeText(this, "Logs cleared", Toast.LENGTH_SHORT).show();
-    }
-
-    private void updateStatus(String state) {
+    private void updateConnectionUI(String state) {
         runOnUiThread(() -> {
-            tvStatus.setText("Status: " + state);
+            tvDeviceName.setText(state);
+            if (state.contains("Connected")) {
+                ivBluetoothStatus.setAlpha(1.0f);
+                ivBluetoothStatus.setColorFilter(Color.parseColor("#10B981"));
+                btnPower.setColorFilter(Color.parseColor("#10B981"));
+            } else {
+                ivBluetoothStatus.setAlpha(0.3f);
+                ivBluetoothStatus.setColorFilter(Color.parseColor("#EF4444"));
+                btnPower.setColorFilter(null);
+            }
         });
+    }
+
+    private void updateVehicleData(int odo, float tripA, float tripB, char gear, int fuel) {
+        runOnUiThread(() -> {
+            tvOdoValue.setText(String.format("%,d", odo));
+
+            // Convert 1-6 bars to percentage (roughly)
+            int fuelPercent = Math.min(100, Math.round((fuel / 6.0f) * 100));
+            tvFuelValue.setText(String.format("%d%%", fuelPercent));
+
+            tvGearValue.setText(String.valueOf(gear));
+            tvTripAValue.setText(String.format("%.1f km", tripA));
+            tvTripBValue.setText(String.format("%.1f km", tripB));
+        });
+    }
+
+    private void checkPermissions() {
+        List<String> permissions = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN);
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT);
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        } else {
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+
+        List<String> toRequest = new ArrayList<>();
+        for (String p : permissions) {
+            if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
+                toRequest.add(p);
+            }
+        }
+
+        if (!toRequest.isEmpty()) {
+            ActivityCompat.requestPermissions(this, toRequest.toArray(new String[0]), REQUEST_PERMISSIONS);
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-
-        // Register broadcast receiver
         IntentFilter filter = new IntentFilter();
         filter.addAction(BleConnectionService.ACTION_STATE_CHANGE);
         filter.addAction(BleConnectionService.ACTION_VEHICLE_DATA);
-        filter.addAction(BleConnectionService.ACTION_ERROR);
-
-        // Android 14+ (API 34) requires explicit RECEIVER_NOT_EXPORTED flag
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -330,29 +246,5 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         unregisterReceiver(serviceReceiver);
-    }
-
-    /**
-     * Update vehicle data display with values from cluster
-     */
-    private void updateVehicleData(int odometer, float tripA, float tripB, char gear, int fuelLevel) {
-        runOnUiThread(() -> {
-            tvOdometer.setText(String.format("Odometer: %,d km", odometer));
-            tvTripA.setText(String.format("Trip A: %.1f km", tripA));
-            tvTripB.setText(String.format("Trip B: %.1f km", tripB));
-            tvGear.setText(String.format("Gear: %c", gear));
-            tvFuel.setText(String.format("Fuel: %d/6 bars", fuelLevel));
-
-            DebugLogger.i("MainActivity",
-                    String.format("Updated vehicle data: ODO=%d, TripA=%.1f, TripB=%.1f, Gear=%c, Fuel=%d",
-                            odometer, tripA, tripB, gear, fuelLevel));
-        });
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        scanner.stopScan();
-        DebugLogger.i("MainActivity", "=== App Destroyed ===");
     }
 }

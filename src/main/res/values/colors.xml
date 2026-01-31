@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark Theme Colors -->
+    <color name="background_primary">#0A0E1A</color>
+    <color name="background_secondary">#1A1F2E</color>
+    <color name="background_card">#2A2F3E</color>
+    
+    <!-- Accent Colors -->
+    <color name="accent_blue">#0066CC</color>
+    <color name="accent_blue_light">#3399FF</color>
+    <color name="suzuki_blue">#0066CC</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0B8C8</color>
+    <color name="text_tertiary">#6B7280</color>
+    
+    <!-- Status Colors -->
+    <color name="status_connected">#10B981</color>
+    <color name="status_disconnected">#EF4444</color>
+    <color name="status_connecting">#F59E0B</color>
+    
+    <!-- Glassmorphic Effect -->
+    <color name="glass_overlay">#33FFFFFF</color>
+    <color name="glass_border">#4DFFFFFF</color>
+    
+    <!-- Map Colors -->
+    <color name="map_background">#1C2333</color>
+    <color name="map_grid">#2A3447</color>
+    <color name="map_route">#3399FF</color>
+</resources>

@@ -1,218 +1,292 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    android:fillViewport="true">
+    android:background="@color/background_primary">
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <!-- Title -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Suzuki BLE Debug Tool"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:paddingBottom="16dp"/>
-
-        <!-- Status Section -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Connection Status"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingTop="8dp"/>
-
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Status: Not connected"
-            android:textSize="14sp"
-            android:padding="8dp"
-            android:background="#E0E0E0"
-            android:layout_marginTop="4dp"/>
-
-        <!-- Device Info Section -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Device Information"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingTop="16dp"/>
-
-        <TextView
-            android:id="@+id/tvDeviceInfo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Device: None"
-            android:textSize="14sp"
-            android:padding="8dp"
-            android:background="#E0E0E0"
-            android:layout_marginTop="4dp"/>
-
-        <!-- Username Input -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Username (for ?6 packet)"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingTop="16dp"/>
-
-        <EditText
-            android:id="@+id/etUsername"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Enter username"
-            android:inputType="text"
-            android:maxLength="22"
-            android:padding="8dp"
-            android:layout_marginTop="4dp"/>
-
-        <!-- Control Buttons -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="16dp">
-
-            <Button
-                android:id="@+id/btnScan"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Scan for Devices"
-                android:layout_marginEnd="4dp"/>
-
-            <Button
-                android:id="@+id/btnConnect"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Connect"
-                android:layout_marginStart="4dp"
-                android:enabled="false"/>
-        </LinearLayout>
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp">
+            android:orientation="vertical">
 
-            <Button
-                android:id="@+id/btnDisconnect"
-                android:layout_width="0dp"
+            <!-- Top Icons Section -->
+            <RelativeLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Disconnect"
-                android:layout_marginEnd="4dp"
-                android:enabled="false"/>
+                android:padding="20dp">
 
-            <Button
-                android:id="@+id/btnClearLogs"
-                android:layout_width="0dp"
+                <ImageButton
+                    android:id="@+id/btnPower"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_power"
+                    android:padding="12dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:contentDescription="Pair Vehicle" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    
+                    <ImageView
+                        android:id="@+id/ivBluetoothStatus"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_bluetooth"
+                        android:layout_marginEnd="6dp"
+                        android:tint="@color/status_disconnected"/>
+
+                    <TextView
+                        android:id="@+id/tvDeviceName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Not Connected"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium" />
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/btnSettings"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_settings"
+                    android:padding="12dp"
+                    android:tint="@color/text_primary"
+                    android:layout_centerVertical="true"
+                    android:layout_alignParentEnd="true" />
+            </RelativeLayout>
+
+            <!-- Vehicle Image Section -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="250dp"
+                android:padding="16dp">
+
+                <ImageView
+                    android:id="@+id/ivMotorcycle"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/motorcycle_gixxer_sf_250"
+                    android:scaleType="centerInside" />
+            </FrameLayout>
+
+            <!-- Data Card Section -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Clear Logs"
-                android:layout_marginStart="4dp"/>
+                android:layout_margin="20dp"
+                app:cardElevation="0dp"
+                app:cardCornerRadius="24dp"
+                android:backgroundTint="@android:color/transparent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/card_background"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="bottom">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="ODOMETER"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:letterSpacing="0.1"
+                                android:fontFamily="sans-serif-black" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="bottom">
+                                
+                                <TextView
+                                    android:id="@+id/tvOdoValue"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="---"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="36sp"
+                                    android:fontFamily="sans-serif-black" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="km"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="14sp"
+                                    android:layout_marginStart="4dp"
+                                    android:layout_marginBottom="6dp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:gravity="end">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="FUEL LEVEL"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:letterSpacing="0.1"
+                                android:fontFamily="sans-serif-black" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+                                
+                                <TextView
+                                    android:id="@+id/tvFuelValue"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="--%"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="28sp"
+                                    android:fontFamily="sans-serif-black" />
+
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@drawable/ic_fuel"
+                                    android:layout_marginStart="8dp"
+                                    android:tint="@color/text_primary" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Gear and Trips Row (New Info) -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:background="@color/glass_border"
+                        android:layout_marginTop="20dp"
+                        android:layout_marginBottom="20dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="GEAR"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="10sp" />
+                            <TextView
+                                android:id="@+id/tvGearValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textColor="@color/accent_blue_light"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="TRIP A"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="10sp" />
+                            <TextView
+                                android:id="@+id/tvTripAValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="-- km"
+                                android:textColor="@color/text_primary"
+                                android:textSize="16sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="TRIP B"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="10sp" />
+                            <TextView
+                                android:id="@+id/tvTripBValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="-- km"
+                                android:textColor="@color/text_primary"
+                                android:textSize="16sp" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Map Section -->
+            <FrameLayout
+                android:id="@+id/mapCard"
+                android:layout_width="match_parent"
+                android:layout_height="400dp">
+
+                <com.suzuki.bletest.PlaceholderMapView
+                    android:id="@+id/mapView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <!-- Gradient Overlay for seamless blending -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="120dp"
+                    android:background="@drawable/map_gradient_overlay"
+                    android:layout_gravity="top" />
+
+            </FrameLayout>
+
         </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-        <!-- Vehicle Data Section -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Vehicle Data"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingTop="16dp"/>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="8dp"
-            android:background="#E0E0E0"
-            android:layout_marginTop="4dp">
-
-            <TextView
-                android:id="@+id/tvOdometer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Odometer: ---"
-                android:textSize="14sp"
-                android:fontFamily="monospace"
-                android:paddingBottom="4dp"/>
-
-            <TextView
-                android:id="@+id/tvTripA"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Trip A: ---"
-                android:textSize="14sp"
-                android:fontFamily="monospace"
-                android:paddingBottom="4dp"/>
-
-            <TextView
-                android:id="@+id/tvTripB"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Trip B: ---"
-                android:textSize="14sp"
-                android:fontFamily="monospace"
-                android:paddingBottom="4dp"/>
-
-            <TextView
-                android:id="@+id/tvGear"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Gear: ---"
-                android:textSize="14sp"
-                android:fontFamily="monospace"
-                android:paddingBottom="4dp"/>
-
-            <TextView
-                android:id="@+id/tvFuel"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Fuel: ---"
-                android:textSize="14sp"
-                android:fontFamily="monospace"/>
-
-        </LinearLayout>
-
-
-        <!-- Debug Logs Section -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Debug Logs (Live)"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:paddingTop="16dp"/>
-
-        <ListView
-            android:id="@+id/lvLogs"
-            android:layout_width="match_parent"
-            android:layout_height="300dp"
-            android:background="#F5F5F5"
-            android:layout_marginTop="4dp"
-            android:transcriptMode="normal"
-            android:stackFromBottom="true"/>
-
-        <ScrollView
-            android:id="@+id/svLogs"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:visibility="gone"/>
-
-    </LinearLayout>
-</ScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

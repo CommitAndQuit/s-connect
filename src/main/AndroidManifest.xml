@@ -29,9 +29,9 @@
     <application
         android:allowBackup="true"
         android:icon="@android:drawable/ic_dialog_info"
-        android:label="Suzuki BLE Debug"
+        android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
+        android:theme="@style/AppTheme"
         tools:targetApi="31">
         
         <activity
@@ -49,6 +49,18 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location"/>
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme" />
+
+        <activity
+            android:name=".DebugActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme" />
     </application>
 
 </manifest>
