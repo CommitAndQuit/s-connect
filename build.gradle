@@ -27,6 +27,10 @@ android {
         }
     }
     
+    dataBinding {
+        enabled = true
+    }
+    
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -44,6 +48,9 @@ dependencies {
         exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-desktop'
     }
     implementation('com.mappls.sdk:place-widget:2.0.0') {
+        exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-desktop'
+    }
+    implementation('com.mappls.sdk:direction-ui:2.0.0') {
         exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-desktop'
     }
 }
