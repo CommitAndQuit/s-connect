@@ -18,6 +18,8 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView tvStatus;
     private Button btnDisconnect;
 
+    private android.widget.Switch switchNotifications;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -28,11 +30,18 @@ public class SettingsActivity extends AppCompatActivity {
         etUsername = findViewById(R.id.etUsernameSettings);
         tvStatus = findViewById(R.id.tvSettingsStatus);
         btnDisconnect = findViewById(R.id.btnDisconnectSettings);
+        switchNotifications = findViewById(R.id.switchNotifications);
 
         btnBack.setOnClickListener(v -> finish());
 
         cardDebugLogs.setOnClickListener(v -> {
             Intent intent = new Intent(this, DebugActivity.class);
+            startActivity(intent);
+        });
+
+        // Notification Access Toggle
+        switchNotifications.setOnClickListener(v -> {
+            Intent intent = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
             startActivity(intent);
         });
 
@@ -45,5 +54,23 @@ public class SettingsActivity extends AppCompatActivity {
             tvStatus.setText("Status: Disconnected");
             btnDisconnect.setVisibility(View.GONE);
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkNotificationPermission();
+    }
+
+    private void checkNotificationPermission() {
+        if (switchNotifications == null)
+            return;
+
+        String packageName = getPackageName();
+        String flat = android.provider.Settings.Secure.getString(getContentResolver(),
+                "enabled_notification_listeners");
+        boolean enabled = flat != null && flat.contains(packageName);
+
+        switchNotifications.setChecked(enabled);
     }
 }

@@ -32,6 +32,9 @@ public class BleConnectionService extends Service {
     public static final String ACTION_VEHICLE_DATA = "com.suzuki.sconnect.VEHICLE_DATA";
     public static final String ACTION_ERROR = "com.suzuki.sconnect.ERROR";
 
+    public static final String ACTION_SEND_PACKET = "com.suzuki.sconnect.SEND_PACKET";
+    public static final String EXTRA_PACKET = "packet_data";
+
     private BluetoothGatt bluetoothGatt;
     private SuzukiGattCallback gattCallback;
     private Handler heartbeatHandler = new Handler(Looper.getMainLooper());
@@ -41,11 +44,50 @@ public class BleConnectionService extends Service {
     private boolean isIdentificationSent = false;
     private int heartbeatCount = 0;
 
+    private final android.content.BroadcastReceiver packetReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(android.content.Context context, Intent intent) {
+            if (ACTION_SEND_PACKET.equals(intent.getAction())) {
+                byte[] packet = intent.getByteArrayExtra(EXTRA_PACKET);
+                if (packet != null && bluetoothGatt != null && gattCallback != null) {
+                    DebugLogger.d("Service", "Received request to send packet: " + packet.length + " bytes");
+
+                    // Decompiled code sends packets 3 times with 200ms delay for reliability
+                    // Use a background thread to avoid blocking
+                    final byte[] finalPacket = packet;
+                    new Thread(() -> {
+                        for (int i = 0; i < 3; i++) {
+                            try {
+                                Thread.sleep(200);
+                            } catch (InterruptedException e) {
+                                DebugLogger.e("Service", "Interrupted during packet delay", e);
+                            }
+                            if (bluetoothGatt != null && gattCallback != null) {
+                                DebugLogger.d("Service", "Sending packet attempt " + (i + 1) + "/3");
+                                gattCallback.writePacket(bluetoothGatt, finalPacket);
+                            }
+                        }
+                    }).start();
+                } else {
+                    DebugLogger.w("Service", "Cannot send packet: " +
+                            (packet == null ? "null packet" : (bluetoothGatt == null ? "gatt null" : "callback null")));
+                }
+            }
+        }
+    };
+
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
         DebugLogger.i("Service", "=== BLE Service Created ===");
+
+        IntentFilter filter = new IntentFilter(ACTION_SEND_PACKET);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(packetReceiver, filter, RECEIVER_EXPORTED);
+        } else {
+            registerReceiver(packetReceiver, filter);
+        }
     }
 
     @Override
@@ -56,23 +98,40 @@ public class BleConnectionService extends Service {
         Notification notification = buildNotification("Initializing...", "");
         startForeground(NOTIFICATION_ID, notification);
 
+        if (intent == null) {
+            return START_STICKY;
+        }
+
         // Get connection parameters from intent
         BluetoothDevice device = intent.getParcelableExtra("device");
         userName = intent.getStringExtra("userName");
         String deviceName = intent.getStringExtra("deviceName");
-        usesInvertedChecksum = SuzukiPacketBuilder.usesInvertedChecksum(deviceName);
 
-        DebugLogger.i("Service", "Connection parameters:");
-        DebugLogger.d("Service", "  Device: " + deviceName);
-        DebugLogger.d("Service", "  Address: " + (device != null ? device.getAddress() : "null"));
-        DebugLogger.d("Service", "  Username: " + userName);
-        DebugLogger.d("Service", "  Checksum Type: " + (usesInvertedChecksum ? "INVERTED (255-sum)" : "DIRECT (sum)"));
-
+        // Only re-initialize if we have a valid device, otherwise we might be
+        // restarting from stickiness
+        // or just receiving a command without re-connection intent
         if (device != null) {
+            usesInvertedChecksum = SuzukiPacketBuilder.usesInvertedChecksum(deviceName);
+
+            DebugLogger.i("Service", "Connection parameters:");
+            DebugLogger.d("Service", "  Device: " + deviceName);
+            DebugLogger.d("Service", "  Address: " + (device != null ? device.getAddress() : "null"));
+            DebugLogger.d("Service", "  Username: " + userName);
+            DebugLogger.d("Service",
+                    "  Checksum Type: " + (usesInvertedChecksum ? "INVERTED (255-sum)" : "DIRECT (sum)"));
+
+            // Save checksum type to prefs for other components
+            // (NotificationService/CallReceiver)
+            getSharedPreferences("SConnectPrefs", MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("usesInvertedChecksum", usesInvertedChecksum)
+                    .apply();
+
             connectToDevice(device);
         } else {
-            DebugLogger.e("Service", "Device is null! Cannot connect.");
-            broadcastError("Device is null");
+            // Check if we are already connected?
+            // For now just log, if we are sticky restart with null intent we wait.
+            DebugLogger.w("Service", "onStartCommand with null device (sticky restart?)");
         }
 
         return START_STICKY;
@@ -308,6 +367,14 @@ public class BleConnectionService extends Service {
     public void onDestroy() {
         super.onDestroy();
         DebugLogger.i("Service", "=== BLE Service Destroyed ===");
+
+        // Unregister broadcast receiver to prevent leak
+        try {
+            unregisterReceiver(packetReceiver);
+        } catch (IllegalArgumentException e) {
+            // Receiver not registered
+        }
+
         stopHeartbeat();
         if (bluetoothGatt != null) {
             try {
