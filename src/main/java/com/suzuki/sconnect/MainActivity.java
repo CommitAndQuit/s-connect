@@ -166,9 +166,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         // Remove listener to prevent multiple triggers
                         nestedScrollView.setOnScrollChangeListener((NestedScrollView.OnScrollChangeListener) null);
 
-                        // Reset scroll position
-                        nestedScrollView.post(() -> nestedScrollView.scrollTo(0, 0));
-
                         // Open full-screen map
                         openFullScreenMap();
                     }

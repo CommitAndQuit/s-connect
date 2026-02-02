@@ -61,7 +61,7 @@
             android:name=".FullScreenMapActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
+            android:theme="@style/AppTheme.TransparentMap" />
 
         <activity
             android:name=".DebugActivity"
