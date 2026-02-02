@@ -10,6 +10,8 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.Toast;
+import android.content.SharedPreferences;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -53,8 +55,12 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
     private ImageButton btnBack, btnClearSearch;
     private CardView searchResultsCard;
     private RecyclerView rvSearchResults;
-    private FloatingActionButton fabCenterLocation;
+    private FloatingActionButton fabCenterLocation, fabHome;
     private SearchResultAdapter searchResultAdapter;
+
+    private static final String PREFS_NAME = "SConnectPrefs";
+    private static final String KEY_HOME_LAT = "home_lat";
+    private static final String KEY_HOME_LNG = "home_lng";
 
     // Navigation fields
 
@@ -82,6 +88,7 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
         searchResultsCard = findViewById(R.id.searchResultsCard);
         rvSearchResults = findViewById(R.id.rvSearchResults);
         fabCenterLocation = findViewById(R.id.fabCenterLocation);
+        fabHome = findViewById(R.id.fabHome);
 
         if (savedInstanceState != null) {
             mapView.onCreate(savedInstanceState);
@@ -104,6 +111,12 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
         });
 
         fabCenterLocation.setOnClickListener(v -> centerMapToUserLocation());
+
+        fabHome.setOnClickListener(v -> handleHomeButtonClick());
+        fabHome.setOnLongClickListener(v -> {
+            resetHomeLocation();
+            return true;
+        });
 
         // Setup RecyclerView
         searchResultAdapter = new SearchResultAdapter(this::onSearchResultClick);
@@ -319,6 +332,49 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
         intent.putExtra("dest_lat", destination.getLatitude());
         intent.putExtra("dest_lng", destination.getLongitude());
         startActivity(intent);
+    }
+
+    private void handleHomeButtonClick() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        float homeLat = prefs.getFloat(KEY_HOME_LAT, 0);
+        float homeLng = prefs.getFloat(KEY_HOME_LNG, 0);
+
+        if (homeLat == 0 || homeLng == 0) {
+            // Home not saved, prompt to save current map center
+            if (mapplsMap != null) {
+                LatLng center = mapplsMap.getCameraPosition().target;
+                new AlertDialog.Builder(this)
+                        .setTitle("Save Home")
+                        .setMessage("Should I save the current map center as your Home location?")
+                        .setPositiveButton("Save", (dialog, which) -> {
+                            prefs.edit()
+                                    .putFloat(KEY_HOME_LAT, (float) center.getLatitude())
+                                    .putFloat(KEY_HOME_LNG, (float) center.getLongitude())
+                                    .apply();
+                            Toast.makeText(this, "Home location saved!", Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        } else {
+            // Home saved, navigate to it
+            startNavigation(new LatLng(homeLat, homeLng));
+        }
+    }
+
+    private void resetHomeLocation() {
+        new AlertDialog.Builder(this)
+                .setTitle("Reset Home")
+                .setMessage("Do you want to clear your saved Home location?")
+                .setPositiveButton("Reset", (dialog, which) -> {
+                    getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                            .remove(KEY_HOME_LAT)
+                            .remove(KEY_HOME_LNG)
+                            .apply();
+                    Toast.makeText(this, "Home location cleared", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
 }
