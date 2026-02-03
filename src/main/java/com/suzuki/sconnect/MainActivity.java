@@ -68,6 +68,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private DeviceAdapter deviceAdapter;
     private List<BluetoothDevice> discoveredDevices = new ArrayList<>();
 
+    // Connection state tracking
+    private boolean isConnected = false;
+
     private BroadcastReceiver serviceReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -128,7 +131,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         nestedScrollView = findViewById(R.id.nestedScrollView);
 
-        btnPower.setOnClickListener(v -> showDeviceSelectionSheet());
+        btnPower.setOnClickListener(v -> {
+            if (isConnected) {
+                disconnectFromVehicle();
+            } else {
+                showDeviceSelectionSheet();
+            }
+        });
         btnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
 
         // Open full-screen map when map preview is clicked
@@ -245,14 +254,28 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void updateConnectionUI(String state) {
         runOnUiThread(() -> {
             tvDeviceName.setText(state);
-            if (state.contains("Connected")) {
+            if (state.equals("CONNECTED") || state.equals("READY")) {
+                isConnected = true;
                 ivBluetoothStatus.setAlpha(1.0f);
                 ivBluetoothStatus.setColorFilter(Color.parseColor("#10B981"));
                 btnPower.setColorFilter(Color.parseColor("#10B981"));
-            } else {
+
+                // Update device name to show connected device
+                if (selectedDevice != null && selectedDevice.getName() != null) {
+                    tvDeviceName.setText(selectedDevice.getName());
+                }
+            } else if (state.equals("DISCONNECTED")) {
+                isConnected = false;
                 ivBluetoothStatus.setAlpha(0.3f);
                 ivBluetoothStatus.setColorFilter(Color.parseColor("#EF4444"));
                 btnPower.setColorFilter(null);
+                tvDeviceName.setText("Disconnected");
+            } else if (state.equals("CONNECTING")) {
+                isConnected = false;
+                ivBluetoothStatus.setAlpha(0.5f);
+                ivBluetoothStatus.setColorFilter(Color.parseColor("#F59E0B"));
+                btnPower.setColorFilter(null);
+                tvDeviceName.setText("Connecting...");
             }
         });
     }
@@ -269,6 +292,28 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             tvTripAValue.setText(String.format("%.1f km", tripA));
             tvTripBValue.setText(String.format("%.1f km", tripB));
         });
+    }
+
+    private void disconnectFromVehicle() {
+        // Stop the BLE service
+        Intent serviceIntent = new Intent(this, BleConnectionService.class);
+        stopService(serviceIntent);
+
+        // Update UI immediately
+        isConnected = false;
+        tvDeviceName.setText("Disconnected");
+        ivBluetoothStatus.setAlpha(0.3f);
+        ivBluetoothStatus.setColorFilter(Color.parseColor("#EF4444"));
+        btnPower.setColorFilter(null);
+
+        // Reset vehicle data
+        tvOdoValue.setText("--");
+        tvFuelValue.setText("--");
+        tvGearValue.setText("-");
+        tvTripAValue.setText("-- km");
+        tvTripBValue.setText("-- km");
+
+        Toast.makeText(this, "Disconnected from vehicle", Toast.LENGTH_SHORT).show();
     }
 
     private void checkPermissions() {

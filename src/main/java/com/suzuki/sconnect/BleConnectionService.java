@@ -319,12 +319,14 @@ public class BleConnectionService extends Service {
 
     private void broadcastStateChange(String state) {
         Intent intent = new Intent(ACTION_STATE_CHANGE);
+        intent.setPackage(getPackageName()); // Explicit package for internal broadcast
         intent.putExtra("state", state);
         sendBroadcast(intent);
     }
 
     private void broadcastError(String error) {
         Intent intent = new Intent(ACTION_ERROR);
+        intent.setPackage(getPackageName()); // Explicit package for internal broadcast
         intent.putExtra("error", error);
         sendBroadcast(intent);
     }
