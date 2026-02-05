@@ -1,4 +1,6 @@
-package com.suzuki.sconnect;
+package com.suzuki.sconnect.ble.protocol;
+
+import com.suzuki.sconnect.utils.DebugLogger;
 
 import java.nio.charset.StandardCharsets;
 

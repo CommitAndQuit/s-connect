@@ -1,4 +1,7 @@
-package com.suzuki.sconnect;
+package com.suzuki.sconnect.ui.activities;
+
+import com.suzuki.sconnect.R;
+import com.suzuki.sconnect.ui.adapters.SearchResultAdapter;
 
 import android.app.ActivityOptions;
 import android.content.Intent;

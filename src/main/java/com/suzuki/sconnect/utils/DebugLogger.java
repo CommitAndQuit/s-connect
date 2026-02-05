@@ -1,4 +1,4 @@
-package com.suzuki.sconnect;
+package com.suzuki.sconnect.utils;
 
 import android.util.Log;
 

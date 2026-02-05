@@ -1,4 +1,9 @@
-package com.suzuki.sconnect;
+package com.suzuki.sconnect.ui.activities;
+
+import com.suzuki.sconnect.R;
+import com.suzuki.sconnect.ble.BleConnectionService;
+import com.suzuki.sconnect.ble.SuzukiBleScanner;
+import com.suzuki.sconnect.ui.adapters.DeviceAdapter;
 
 import android.Manifest;
 import android.app.ActivityOptions;

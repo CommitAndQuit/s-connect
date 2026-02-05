@@ -1,4 +1,7 @@
-package com.suzuki.sconnect;
+package com.suzuki.sconnect.ui.activities;
+
+import com.suzuki.sconnect.R;
+import com.suzuki.sconnect.ble.BleConnectionService;
 
 import android.content.Intent;
 import android.os.Bundle;

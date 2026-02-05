@@ -1,4 +1,6 @@
-package com.suzuki.sconnect;
+package com.suzuki.sconnect.ble;
+
+import com.suzuki.sconnect.utils.DebugLogger;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;

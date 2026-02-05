@@ -36,7 +36,7 @@
         tools:targetApi="31">
         
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.activities.MainActivity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
@@ -46,19 +46,19 @@
         </activity>
         
         <service
-            android:name=".BleConnectionService"
+            android:name=".ble.BleConnectionService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location"/>
 
         <activity
-            android:name=".SettingsActivity"
+            android:name=".ui.activities.SettingsActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme" />
 
         <activity
-            android:name=".FullScreenMapActivity"
+            android:name=".ui.activities.FullScreenMapActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme.TransparentMap" />
@@ -66,10 +66,26 @@
 
 
         <activity
-            android:name=".NavigationActivity"
+            android:name=".ui.activities.NavigationActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme" />
+
+        <service android:name=".notifications.AppNotificationService"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <receiver android:name=".notifications.AppCallReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PHONE_STATE" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

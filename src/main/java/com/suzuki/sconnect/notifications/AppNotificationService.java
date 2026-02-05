@@ -1,4 +1,8 @@
-package com.suzuki.sconnect;
+package com.suzuki.sconnect.notifications;
+
+import com.suzuki.sconnect.ble.BleConnectionService;
+import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
+import com.suzuki.sconnect.utils.DebugLogger;
 
 import android.app.Notification;
 import android.content.Intent;

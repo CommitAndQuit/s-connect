@@ -1,4 +1,8 @@
-package com.suzuki.sconnect;
+package com.suzuki.sconnect.ble;
+
+import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
+import com.suzuki.sconnect.ble.protocol.SuzukiPacketParser;
+import com.suzuki.sconnect.utils.DebugLogger;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;

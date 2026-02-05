@@ -1,4 +1,6 @@
-package com.suzuki.sconnect;
+package com.suzuki.sconnect.ui.adapters;
+
+import com.suzuki.sconnect.R;
 
 import android.view.LayoutInflater;
 import android.view.View;
