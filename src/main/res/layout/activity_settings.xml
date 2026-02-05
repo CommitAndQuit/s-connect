@@ -41,7 +41,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Connection Status (for debug visibility here too) -->
+            <!-- Connection Status -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -79,47 +79,6 @@
                         android:visibility="gone" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
-
-            <!-- Debug Tools -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="DEBUG TOOLS"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:layout_marginBottom="8dp" />
-
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardDebugLogs"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="@color/background_secondary"
-                android:foreground="?attr/selectableItemBackground"
-                style="@style/GlassCard">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Debug Logs"
-                        android:textColor="@color/text_primary" />
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_info_details"
-                        android:tint="@color/text_secondary" />
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
             <!-- Preferences -->
             <TextView
                 android:layout_width="wrap_content"

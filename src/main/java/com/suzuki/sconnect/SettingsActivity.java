@@ -13,7 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 public class SettingsActivity extends AppCompatActivity {
 
     private ImageButton btnBack;
-    private View cardDebugLogs;
+
     private EditText etUsername;
     private TextView tvStatus;
     private Button btnDisconnect;
@@ -26,18 +26,13 @@ public class SettingsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_settings);
 
         btnBack = findViewById(R.id.btnBack);
-        cardDebugLogs = findViewById(R.id.cardDebugLogs);
+
         etUsername = findViewById(R.id.etUsernameSettings);
         tvStatus = findViewById(R.id.tvSettingsStatus);
         btnDisconnect = findViewById(R.id.btnDisconnectSettings);
         switchNotifications = findViewById(R.id.switchNotifications);
 
         btnBack.setOnClickListener(v -> finish());
-
-        cardDebugLogs.setOnClickListener(v -> {
-            Intent intent = new Intent(this, DebugActivity.class);
-            startActivity(intent);
-        });
 
         // Notification Access Toggle
         switchNotifications.setOnClickListener(v -> {
