@@ -53,6 +53,7 @@ public class BleConnectionService extends Service {
     private final android.content.BroadcastReceiver packetReceiver = new android.content.BroadcastReceiver() {
         @Override
         public void onReceive(android.content.Context context, Intent intent) {
+            DebugLogger.d("Service", "onReceive called with action: " + intent.getAction());
             if (ACTION_SEND_PACKET.equals(intent.getAction())) {
                 byte[] packet = intent.getByteArrayExtra(EXTRA_PACKET);
                 if (packet != null && bluetoothGatt != null && gattCallback != null) {
@@ -90,10 +91,11 @@ public class BleConnectionService extends Service {
 
         IntentFilter filter = new IntentFilter(ACTION_SEND_PACKET);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(packetReceiver, filter, RECEIVER_EXPORTED);
+            registerReceiver(packetReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(packetReceiver, filter);
         }
+        DebugLogger.d("Service", "Receiver registered for: " + ACTION_SEND_PACKET);
     }
 
     @Override

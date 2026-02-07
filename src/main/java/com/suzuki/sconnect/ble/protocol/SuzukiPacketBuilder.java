@@ -412,4 +412,92 @@ public class SuzukiPacketBuilder {
         return packet;
     }
 
+    /**
+     * Navigation Turn Icon Constants
+     * Mapped to Suzuki Instrument Cluster byte codes (Hypothetical mapping)
+     */
+    public static class TurnIcon {
+        public static final int NONE = 0;
+        public static final int STRAIGHT = 1;
+        public static final int TURN_LEFT = 2;
+        public static final int TURN_RIGHT = 3;
+        public static final int SLIGHT_LEFT = 4;
+        public static final int SLIGHT_RIGHT = 5;
+        public static final int U_TURN_LEFT = 6;
+        public static final int U_TURN_RIGHT = 7;
+        public static final int ROUNDABOUT = 8;
+        public static final int DESTINATION = 9;
+    }
+
+    /**
+     * Construct Navigation Packet (?1)
+     * Sent to update turn-by-turn guidance on the cluster
+     *
+     * REVERSE-ENGINEERED STRUCTURE from decompiled Suzuki app (w0.java:377):
+     * [0] = 0xA5 (Header)
+     * [1] = '1' (Navigation packet type - NOT '8'!)
+     * [2] = Maneuver Icon ID (byte)
+     * [3] = 0xFF (padding)
+     * [4-7] = Distance in meters (4 ASCII digits, e.g., "0250")
+     * [8-11] = Turn direction code (4 ASCII digits)
+     * [12-14] = "000" (padding)
+     * [15-18] = Secondary info (4 ASCII digits)
+     * [19-21] = Road info (3 ASCII chars)
+     * [22] = Network status ('1' = normal, '4' = GPS lost, '0' = no network)
+     * [23] = Exit code ('1' = active, '0' = exit navigation)
+     * [24] = '0'
+     * [25-27] = 0xFF (padding)
+     * [28] = Checksum
+     * [29] = Footer
+     *
+     * @param distanceMeters Distance to next maneuver
+     * @param turnIconId     ID of the turn icon (from TurnIcon class)
+     * @param instruction    Short text instruction (NOT USED in actual protocol)
+     */
+    public static byte[] buildNavigationPacket(int distanceMeters, int turnIconId, String instruction,
+            boolean usesInvertedChecksum) {
+        DebugLogger.d("PacketBuilder", "Building ?1 navigation packet (REVERSE-ENGINEERED)");
+        DebugLogger.d("PacketBuilder",
+                "  Dist: " + distanceMeters + "m, Icon: " + turnIconId);
+
+        byte[] packet = new byte[PACKET_SIZE];
+        try {
+            // Build string template (24 bytes total after '?' replacement)
+            // Example: "?110025004500000000000110" (24 chars)
+
+            // Format distance as 4 digits
+            String distStr = String.format("%04d", Math.min(distanceMeters, 9999));
+
+            // Turn direction code (simplified - using icon ID as placeholder)
+            String turnCode = String.format("%02d", turnIconId % 100);
+
+            // Build packet string base (approx 24 bytes)
+            String packetStr = "?110" + distStr + turnCode + "00" + "000" + "0000" + "000" + "1" + "1" + "0";
+            byte[] strBytes = packetStr.getBytes(StandardCharsets.UTF_8);
+
+            // Copy up to index 24 (leave room for padding, checksum, footer)
+            System.arraycopy(strBytes, 0, packet, 0, Math.min(strBytes.length, 25));
+
+            // Override specific bytes
+            packet[0] = HEADER; // 0xA5
+            packet[2] = (byte) turnIconId; // Maneuver icon ID
+            packet[3] = (byte) 0xFF; // Padding
+
+            // Clear road info / padding bytes 25-27
+            for (int i = 25; i <= 27; i++) {
+                packet[i] = (byte) 0xFF;
+            }
+
+            // Checksum & Footer
+            packet[28] = calculateChecksum(packet, usesInvertedChecksum);
+            packet[29] = FOOTER;
+
+            DebugLogger.logPacket("PacketBuilder", "Built ?1 packet", packet);
+
+        } catch (Exception e) {
+            DebugLogger.e("PacketBuilder", "Error building navigation packet", e);
+        }
+        return packet;
+    }
+
 }
