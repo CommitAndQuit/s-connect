@@ -20,6 +20,7 @@ import com.mappls.sdk.maps.MapView;
 import com.mappls.sdk.maps.MapplsMap;
 import com.mappls.sdk.maps.OnMapReadyCallback;
 import com.mappls.sdk.maps.camera.CameraUpdateFactory;
+import com.mappls.sdk.maps.camera.CameraPosition;
 import com.mappls.sdk.maps.geometry.LatLng;
 import com.mappls.sdk.maps.annotations.Polyline;
 import com.mappls.sdk.maps.annotations.PolylineOptions;
@@ -150,10 +151,11 @@ public class NavigationActivity extends AppCompatActivity
             if (locationComponent != null && mapplsMap.getStyle() != null) {
                 LocationComponentActivationOptions options = LocationComponentActivationOptions
                         .builder(this, mapplsMap.getStyle())
+                        .useDefaultLocationEngine(true)
                         .build();
                 locationComponent.activateLocationComponent(options);
                 locationComponent.setLocationComponentEnabled(true);
-                locationComponent.setRenderMode(RenderMode.GPS);
+                locationComponent.setRenderMode(RenderMode.GPS); // Bearing-aware puck
                 android.util.Log.d("NavigationActivity", "Location component enabled successfully");
             } else {
                 android.util.Log.w("NavigationActivity", "Location component or style is null");
@@ -296,7 +298,19 @@ public class NavigationActivity extends AppCompatActivity
             addDestinationMarker();
 
             if (locationComponent != null && locationComponent.isLocationComponentActivated()) {
-                locationComponent.setCameraMode(CameraMode.TRACKING_GPS);
+                locationComponent.setCameraMode(CameraMode.TRACKING_GPS); // Follow bearing
+
+                // Shift puck to bottom-center (approx 70% from top)
+                int topPadding = (int) (mapView.getHeight() * 0.65);
+                mapplsMap.setPadding(0, topPadding, 0, 0);
+
+                // Apply perspective tilt and zoom while preserving current target (location
+                // puck)
+                mapplsMap.animateCamera(CameraUpdateFactory.newCameraPosition(
+                        new CameraPosition.Builder(mapplsMap.getCameraPosition())
+                                .tilt(45)
+                                .zoom(18.5)
+                                .build()));
             }
 
             navigationSession.startSession(activeRoute, this);
