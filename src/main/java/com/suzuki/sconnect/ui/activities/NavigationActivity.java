@@ -60,11 +60,16 @@ public class NavigationActivity extends AppCompatActivity
     private LocationComponent locationComponent;
 
     // Throttling for navigation packets (Bug #2 fix)
-    private long lastPacketSentTime = 0;
-    private static final long PACKET_SEND_INTERVAL_MS = 1000; // 1 second
+    private final android.os.Handler clusterHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private int lastDistance = -1;
     private int lastTurnIcon = -1;
+    private String lastEtaStr = "1200PM";
     private boolean isNavigationStarted = false;
+    private boolean isRerouting = false;
+    private com.suzuki.sconnect.utils.MapplsRouteManager routeManager;
+
+    private static final int REROUTE_THRESHOLD_METERS = 50;
+    private static final long CLUSTER_INTERVAL_MS = 200;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -89,8 +94,15 @@ public class NavigationActivity extends AppCompatActivity
         }
 
         navigationSession = new com.suzuki.sconnect.utils.NavigationSession();
+        routeManager = new com.suzuki.sconnect.utils.MapplsRouteManager();
         setupLocationUpdates();
-        setupNavigation();
+
+        int selectedRouteIndex = getIntent().getIntExtra("selectedRouteIndex", -1);
+        if (selectedRouteIndex != -1) {
+            setupNavigationFromSelection(selectedRouteIndex);
+        } else {
+            setupNavigation();
+        }
     }
 
     private void initUI(Bundle savedInstanceState) {
@@ -170,6 +182,10 @@ public class NavigationActivity extends AppCompatActivity
                 if (navigationSession != null) {
                     navigationSession.onLocationChanged(location);
                 }
+
+                if (isNavigationStarted && activeRoute != null && !isRerouting) {
+                    checkForOffRoute(location);
+                }
             }
 
             @Override
@@ -230,6 +246,30 @@ public class NavigationActivity extends AppCompatActivity
             java.util.List<DirectionPoint> waypoints, DirectionsResponse directionsResponse, int index) {
 
         android.util.Log.d("NavigationActivity", "onStartNavigation callback received! Index: " + index);
+        startActualNavigation(directionsResponse.routes().get(index));
+    }
+
+    private void setupNavigationFromSelection(int index) {
+        // For simplicity, we trigger a fetch or assume a static/pre-fetched route
+        // In a real app, RouteSelectionActivity would pass the route data via JSON or
+        // shared repo
+        // Here we'll just fetch again to get the full route object
+        Point destination = Point.fromLngLat(destLng, destLat);
+        Point origin = Point.fromLngLat(originLng != 0 ? originLng : 77.2090, originLat != 0 ? originLat : 28.6139);
+
+        routeManager.fetchRoute(origin, destination, new com.suzuki.sconnect.utils.MapplsRouteManager.RouteCallback() {
+            @Override
+            public void onRouteSuccess(DirectionsResponse response) {
+                runOnUiThread(() -> startActualNavigation(response.routes().get(index)));
+            }
+
+            @Override
+            public void onRouteStringError(String error) {
+                /* handle error */ }
+        });
+    }
+
+    private void startActualNavigation(DirectionsRoute route) {
         isNavigationStarted = true;
 
         // Transition UI
@@ -246,35 +286,72 @@ public class NavigationActivity extends AppCompatActivity
 
         Toast.makeText(this, "Starting Navigation & Cluster Sync...", Toast.LENGTH_SHORT).show();
 
-        if (directionsResponse != null && directionsResponse.routes() != null
-                && directionsResponse.routes().size() > index) {
+        if (route != null) {
 
-            activeRoute = directionsResponse.routes().get(index);
+            activeRoute = route;
             android.util.Log.d("NavigationActivity",
                     "Starting NavigationSession with route: " + activeRoute.distance() + "m");
 
-            // Draw route on map with traffic colors
             drawRouteOnMap(activeRoute);
-
-            // Add destination marker
             addDestinationMarker();
 
-            // Enable GPS tracking camera (only if location component is active)
             if (locationComponent != null && locationComponent.isLocationComponentActivated()) {
-                try {
-                    locationComponent.setCameraMode(CameraMode.TRACKING_GPS);
-                    android.util.Log.d("NavigationActivity", "GPS tracking camera enabled");
-                } catch (Exception e) {
-                    android.util.Log.e("NavigationActivity", "Error setting camera mode", e);
-                }
-            } else {
-                android.util.Log.w("NavigationActivity", "Location component not activated, skipping camera tracking");
+                locationComponent.setCameraMode(CameraMode.TRACKING_GPS);
             }
 
             navigationSession.startSession(activeRoute, this);
+
+            // Start Cluster Heartbeat loop
+            clusterHandler.post(clusterRunnable);
+
+            // Send ?6 Identification Packet (once)
+            sendIdentificationPacket();
         } else {
-            android.util.Log.e("NavigationActivity", "onStartNavigation: Invalid route or response null");
+            android.util.Log.e("NavigationActivity", "startActualNavigation: route null");
         }
+    }
+
+    private void sendIdentificationPacket() {
+        android.content.SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+        boolean usesInvertedChecksum = prefs.getBoolean("usesInvertedChecksum", false);
+        String bikeName = prefs.getString("bike_name", "Suzuki");
+
+        byte[] packet = com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder.buildIdentificationPacket(
+                bikeName, false, usesInvertedChecksum);
+
+        sendPacketBroadcast(packet);
+    }
+
+    private final Runnable clusterRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isNavigationStarted)
+                return;
+
+            android.content.SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+            boolean usesInvertedChecksum = prefs.getBoolean("usesInvertedChecksum", false);
+
+            boolean hasGps = locationManager != null
+                    && locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER);
+            String statusCode = isRerouting ? "2" : (hasGps ? "1" : "4");
+
+            byte[] packet = com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder.buildNavigationPacket(
+                    lastDistance != -1 ? lastDistance : 0,
+                    lastTurnIcon != -1 ? lastTurnIcon : 46,
+                    lastEtaStr,
+                    statusCode,
+                    usesInvertedChecksum);
+
+            sendPacketBroadcast(packet);
+            clusterHandler.postDelayed(this, CLUSTER_INTERVAL_MS);
+        }
+    };
+
+    private void sendPacketBroadcast(byte[] packet) {
+        android.content.Intent intent = new android.content.Intent(BleConnectionService.ACTION_SEND_PACKET);
+        intent.setPackage(getPackageName());
+        intent.putExtra(BleConnectionService.EXTRA_PACKET, packet);
+        sendBroadcast(intent);
     }
 
     private void drawRouteOnMap(DirectionsRoute route) {
@@ -377,11 +454,14 @@ public class NavigationActivity extends AppCompatActivity
     }
 
     @Override
-    public void onNavigationUpdate(int distanceMeters, int turnIconId, String instruction) {
-        android.util.Log.d("NavigationActivity", String.format("onNavigationUpdate: %dm, icon: %d, inst: %s",
-                distanceMeters, turnIconId, instruction));
+    public void onNavigationUpdate(int distanceMeters, int turnIconId, String instruction, String etaStr) {
+        android.util.Log.d("NavigationActivity", String.format("onNavigationUpdate: %dm, icon: %d, inst: %s, ETA: %s",
+                distanceMeters, turnIconId, instruction, etaStr));
 
-        // Update UI Card
+        lastDistance = distanceMeters;
+        lastTurnIcon = turnIconId;
+        lastEtaStr = etaStr;
+
         runOnUiThread(() -> {
             if (tvDistance != null) {
                 String distText = (distanceMeters < 1000) ? String.format("In %d m", distanceMeters)
@@ -390,46 +470,67 @@ public class NavigationActivity extends AppCompatActivity
             }
             if (tvInstruction != null)
                 tvInstruction.setText(instruction);
+            if (maneuverIcon != null) {
+                // We'd ideally map turnIconId to a local drawable here
+            }
         });
+    }
 
-        // Throttle packet transmission to 1 per second
-        long currentTime = System.currentTimeMillis();
-        long timeSinceLastPacket = currentTime - lastPacketSentTime;
-
-        boolean shouldSend = false;
-        if (timeSinceLastPacket >= PACKET_SEND_INTERVAL_MS) {
-            shouldSend = true;
-        } else if (lastTurnIcon != turnIconId) {
-            shouldSend = true;
-        } else if (Math.abs(lastDistance - distanceMeters) > 50) {
-            shouldSend = true;
-        }
-
-        if (!shouldSend)
+    private void checkForOffRoute(android.location.Location location) {
+        if (activeRoute == null || location == null)
             return;
 
-        lastPacketSentTime = currentTime;
-        lastDistance = distanceMeters;
-        lastTurnIcon = turnIconId;
+        // Simplified off-route check: distance to polyline
+        // Decode geometry once or cache it
+        java.util.List<LatLng> points = decodePolyline(activeRoute.geometry());
+        double minDistance = Double.MAX_VALUE;
 
-        android.content.SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
-        boolean usesInvertedChecksum = prefs.getBoolean("usesInvertedChecksum", false);
+        for (LatLng p : points) {
+            float[] results = new float[1];
+            android.location.Location.distanceBetween(location.getLatitude(), location.getLongitude(), p.getLatitude(),
+                    p.getLongitude(), results);
+            if (results[0] < minDistance)
+                minDistance = results[0];
+        }
 
-        byte[] packet = com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder.buildNavigationPacket(
-                distanceMeters, turnIconId, instruction, usesInvertedChecksum);
+        if (minDistance > REROUTE_THRESHOLD_METERS) {
+            triggerReroute(location);
+        }
+    }
 
-        android.content.Intent intent = new android.content.Intent(BleConnectionService.ACTION_SEND_PACKET);
-        intent.setPackage(getPackageName());
-        intent.putExtra(BleConnectionService.EXTRA_PACKET, packet);
+    private void triggerReroute(android.location.Location location) {
+        if (isRerouting)
+            return;
+        isRerouting = true;
+        Log.i("NavigationActivity", "Off route detected! Rerouting...");
 
-        Log.d("SuzukiBLE", "NavigationActivity: Sending broadcast intent: " + intent.getAction() + " to package: "
-                + intent.getPackage());
-        sendBroadcast(intent);
+        Point origin = Point.fromLngLat(location.getLongitude(), location.getLatitude());
+        Point destination = Point.fromLngLat(destLng, destLat);
+
+        routeManager.fetchRoute(origin, destination, new com.suzuki.sconnect.utils.MapplsRouteManager.RouteCallback() {
+            @Override
+            public void onRouteSuccess(DirectionsResponse response) {
+                runOnUiThread(() -> {
+                    activeRoute = response.routes().get(0);
+                    drawRouteOnMap(activeRoute);
+                    navigationSession.startSession(activeRoute, NavigationActivity.this);
+                    isRerouting = false;
+                    Log.i("NavigationActivity", "Reroute successful.");
+                });
+            }
+
+            @Override
+            public void onRouteStringError(String error) {
+                isRerouting = false;
+                Log.e("NavigationActivity", "Reroute failed: " + error);
+            }
+        });
     }
 
     private void stopNavigation() {
         android.util.Log.d("NavigationActivity", "Stopping Navigation");
         isNavigationStarted = false;
+        clusterHandler.removeCallbacks(clusterRunnable);
 
         // Clear route visualization
         for (Polyline polyline : routePolylines) {

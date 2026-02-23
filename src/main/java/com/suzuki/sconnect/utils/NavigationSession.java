@@ -24,7 +24,7 @@ public class NavigationSession {
     private boolean isNavigating = false;
 
     public interface NavigationUpdateListener {
-        void onNavigationUpdate(int distanceMeters, int turnIconId, String instruction);
+        void onNavigationUpdate(int distanceMeters, int turnIconId, String instruction, String etaStr);
 
         void onDestinationReached();
     }
@@ -112,7 +112,7 @@ public class NavigationSession {
             Log.d(TAG, "Initial state (no location): dist=" + distanceToStepEnd);
         }
 
-        int iconId = mapManeuverToIcon(currentStep.maneuver().type(), currentStep.maneuver().modifier());
+        int iconId = mapManeuverToIcon(currentStep);
         String instruction = currentStep.maneuver().instruction();
 
         if (instruction == null)
@@ -120,52 +120,109 @@ public class NavigationSession {
         if (instruction == null)
             instruction = "Turn";
 
+        // Calculate ETA
+        String etaStr = calculateETA();
+
         if (listener != null) {
-            listener.onNavigationUpdate((int) distanceToStepEnd, iconId, instruction);
+            listener.onNavigationUpdate((int) distanceToStepEnd, iconId, instruction, etaStr);
         }
     }
 
-    private int mapManeuverToIcon(String type, String modifier) {
-        if (type == null)
-            return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
+    private String calculateETA() {
+        if (steps == null || currentStepIndex >= steps.size())
+            return "1200PM";
 
-        // Basic mapping logic - Needs to be refined based on actual Mappls strings
-        // Common Mappls/OSRM types: "turn", "new name", "depart", "arrive", "merge",
-        // "ramp"
-        // Modifiers: "left", "right", "sharp left", "slight right", "straight"
+        double remainingDurationSeconds = 0;
+        for (int i = currentStepIndex; i < steps.size(); i++) {
+            Double d = steps.get(i).duration();
+            if (d != null) {
+                remainingDurationSeconds += d;
+            }
+        }
+
+        long etaMillis = System.currentTimeMillis() + (long) (remainingDurationSeconds * 1000);
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.setTimeInMillis(etaMillis);
+
+        int hour = cal.get(java.util.Calendar.HOUR);
+        if (hour == 0)
+            hour = 12;
+        int minute = cal.get(java.util.Calendar.MINUTE);
+        String ampm = cal.get(java.util.Calendar.AM_PM) == java.util.Calendar.AM ? "AM" : "PM";
+
+        return String.format("%02d%02d%s", hour, minute, ampm);
+    }
+
+    /**
+     * Maps a step's maneuver to the correct Suzuki cluster icon byte.
+     *
+     * KEY FINDING from decompiled Suzuki source (w0.java):
+     * The original app DIRECTLY reads `maneuver.maneuverId()` from the Mappls API
+     * JSON (`maneuver_id` field in the route response) and sends that integer
+     * as the cluster icon byte at bArr[2] in the navigation packet.
+     *
+     * Our previous implementation was incorrect — it computed an icon from the
+     * type+modifier strings, which produced wrong values (e.g., right when left).
+     *
+     * Fallback: if `maneuverId()` is null (older API or missing), we fall back to
+     * a best-effort string mapping.
+     */
+    private int mapManeuverToIcon(LegStep step) {
+        com.mappls.sdk.services.api.directions.models.StepManeuver maneuver = step.maneuver();
+        if (maneuver == null)
+            return SuzukiPacketBuilder.TurnIcon.NONE;
+
+        // PRIMARY: Use the official Mappls API maneuver_id — this IS the cluster icon
+        // byte
+        Integer maneuverId = maneuver.maneuverId();
+        if (maneuverId != null && maneuverId > 0) {
+            Log.d(TAG, "Using API maneuverId: " + maneuverId);
+            return maneuverId;
+        }
+
+        // FALLBACK: If maneuverId is not provided, use type+modifier strings
+        String type = maneuver.type();
+        String modifier = maneuver.modifier();
+        Log.w(TAG, "maneuverId null, falling back to string mapping: type=" + type + " modifier=" + modifier);
+
+        if (type == null)
+            return SuzukiPacketBuilder.TurnIcon.NONE;
 
         switch (type) {
             case "arrive":
                 return SuzukiPacketBuilder.TurnIcon.DESTINATION;
+            case "depart":
+            case "new name":
+                return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
             case "turn":
-            case "roundabout": // Simplify roundabouts for now
             case "merge":
             case "fork":
-                if (modifier != null) {
-                    if (modifier.contains("left")) {
-                        if (modifier.contains("sharp"))
-                            return SuzukiPacketBuilder.TurnIcon.TURN_LEFT; // Or U-turn?
-                        if (modifier.contains("slight"))
-                            return SuzukiPacketBuilder.TurnIcon.SLIGHT_LEFT;
-                        return SuzukiPacketBuilder.TurnIcon.TURN_LEFT;
-                    } else if (modifier.contains("right")) {
-                        if (modifier.contains("sharp"))
-                            return SuzukiPacketBuilder.TurnIcon.TURN_RIGHT;
-                        if (modifier.contains("slight"))
-                            return SuzukiPacketBuilder.TurnIcon.SLIGHT_RIGHT;
-                        return SuzukiPacketBuilder.TurnIcon.TURN_RIGHT;
-                    } else if (modifier.contains("straight")) {
-                        return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
-                    } else if (modifier.contains("uturn")) {
-                        // Heuristic: usually left hand drive vs right? Mappls defaults to local?
-                        return SuzukiPacketBuilder.TurnIcon.U_TURN_RIGHT;
-                    }
-                }
-                break;
-            case "depart":
+            case "off ramp":
+            case "on ramp":
+            case "end of road":
+                if (modifier == null)
+                    return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
+                if (modifier.contains("sharp left"))
+                    return SuzukiPacketBuilder.TurnIcon.TURN_LEFT;
+                if (modifier.contains("left"))
+                    return SuzukiPacketBuilder.TurnIcon.TURN_LEFT;
+                if (modifier.contains("slight left"))
+                    return SuzukiPacketBuilder.TurnIcon.SLIGHT_LEFT;
+                if (modifier.contains("sharp right"))
+                    return SuzukiPacketBuilder.TurnIcon.TURN_RIGHT;
+                if (modifier.contains("right"))
+                    return SuzukiPacketBuilder.TurnIcon.TURN_RIGHT;
+                if (modifier.contains("slight right"))
+                    return SuzukiPacketBuilder.TurnIcon.SLIGHT_RIGHT;
+                if (modifier.contains("uturn"))
+                    return SuzukiPacketBuilder.TurnIcon.U_TURN_LEFT;
+                return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
+            case "roundabout":
+            case "rotary":
+            case "exit roundabout":
+                return SuzukiPacketBuilder.TurnIcon.ROUNDABOUT;
+            default:
                 return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
         }
-
-        return SuzukiPacketBuilder.TurnIcon.STRAIGHT; // Default
     }
 }

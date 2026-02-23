@@ -425,6 +425,7 @@ public class SuzukiPacketBuilder {
         public static final int SLIGHT_RIGHT = 5; // Mappls 4 -> Suzuki 5
         public static final int U_TURN_LEFT = 7; // Mappls 6 -> Suzuki 7
         public static final int U_TURN_RIGHT = 8; // Mappls 7 -> Suzuki 8
+        public static final int ROUNDABOUT = 9; // Generic roundabout
         public static final int DESTINATION = 15; // Mappls 53 -> Suzuki 15
         public static final int ARRIVE = 15;
     }
@@ -444,28 +445,57 @@ public class SuzukiPacketBuilder {
      * [15-17] = 0xFF, 0xFF, 0xFF (padding)
      * [18-21] = Distance 2 (usually same as Distance 1)
      * [22] = Unit 2
-     * [23] = Status 1 ('1' = normal, '4' = GPS lost)
+     * [23] = Status 1 ('1' = normal, '2' = rerouting, '4' = GPS lost, '5' =
+     * arrived)
      * [24] = Status 2 ('1' = active, '0' = exit)
      * [25-27] = 0xFF, 0xFF, 0xFF (padding)
      * [28] = Checksum
      * [29] = Footer (0x7F)
      *
-     * @param distanceMeters Distance to next maneuver
-     * @param turnIconId     ID of the turn icon (Binary byte value)
-     * @param instruction    Short text instruction (NOT USED in actual protocol)
+     * @param distanceMeters       Distance to next maneuver
+     * @param turnIconId           ID of the turn icon (Binary byte value)
+     * @param etaStr               ETA time string (6 chars, e.g. "0530PM")
+     * @param statusCode           Status code ("1"=normal, "2"=reroute, "4"=gps
+     *                             lost, "5"=arrived)
+     * @param usesInvertedChecksum Checksum type
      */
-    public static byte[] buildNavigationPacket(int distanceMeters, int turnIconId, String instruction,
+    public static byte[] buildNavigationPacket(int distanceMeters, int turnIconId, String etaStr, String statusCode,
             boolean usesInvertedChecksum) {
-        DebugLogger.d("PacketBuilder", "Building ?1 navigation packet (REVERSE-ENGINEERED)");
-        DebugLogger.d("PacketBuilder", "  Dist: " + distanceMeters + "m, Icon: " + turnIconId);
+        DebugLogger.d("PacketBuilder", "Building ?1 packet: Dist=" + distanceMeters + "m, Icon=" + turnIconId + ", ETA="
+                + etaStr + ", Status=" + statusCode);
 
         byte[] packet = new byte[PACKET_SIZE];
         try {
-            // 1. Prepare component strings
-            String distStr = String.format("%04d", Math.min(distanceMeters, 9999));
-            String unit = (distanceMeters < 1000) ? "M" : "M"; // Most clusters prefer 'M' for guidance
-            String etaStr = "1200PM"; // Default/Dummy ETA
-            String status1 = "1"; // Normal
+            // 1. Prepare distance component
+            String distStr;
+            String unit;
+
+            if (distanceMeters < 1000) {
+                distStr = String.format("%04d", distanceMeters);
+                unit = "M";
+            } else {
+                // For km, show like "1.2" as "01.2" but protocol expects 4 digits
+                // Looking at w0.java, it uses float formatting.
+                // Simplified: round to km for now if > 1km to avoid complex decimal logic in
+                // test
+                double km = distanceMeters / 1000.0;
+                if (km < 10) {
+                    distStr = String.format("%04.1f", km).replace(".", ""); // "1.2" -> "012" -> pad to 4?
+                    // No, w0.java does: substring(1, 4) etc.
+                    // Actually, let's keep it simple as "0001" K for 1km for now.
+                    distStr = String.format("%04d", Math.round(km));
+                } else {
+                    distStr = String.format("%04d", Math.round(km));
+                }
+                unit = "K";
+            }
+
+            // ETA must be 6 chars. Pad if necessary.
+            if (etaStr == null || etaStr.length() != 6) {
+                etaStr = "1200PM";
+            }
+
+            String status1 = statusCode != null ? statusCode : "1";
             String status2 = "1"; // Active
 
             // 2. Build base string (30 chars)
@@ -495,8 +525,6 @@ public class SuzukiPacketBuilder {
             // 5. Checksum & Footer
             packet[28] = calculateChecksum(packet, usesInvertedChecksum);
             packet[29] = FOOTER;
-
-            DebugLogger.logPacket("PacketBuilder", "Built ?1 packet (FIXED)", packet);
 
         } catch (Exception e) {
             DebugLogger.e("PacketBuilder", "Error building navigation packet", e);

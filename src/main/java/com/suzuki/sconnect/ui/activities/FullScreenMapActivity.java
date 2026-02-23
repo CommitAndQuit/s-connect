@@ -325,7 +325,7 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
     }
 
     private void startNavigation(LatLng destination) {
-        Intent intent = new Intent(this, NavigationActivity.class);
+        Intent intent = new Intent(this, RouteSelectionActivity.class);
         LocationComponent locationComponent = mapplsMap.getLocationComponent();
         if (locationComponent != null && locationComponent.getLastKnownLocation() != null) {
             Location lastLocation = locationComponent.getLastKnownLocation();

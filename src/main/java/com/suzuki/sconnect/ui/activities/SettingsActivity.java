@@ -91,7 +91,7 @@ public class SettingsActivity extends AppCompatActivity {
 
                     // Build fixed packet with correct structure
                     byte[] packet = com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder.buildNavigationPacket(
-                            250, turnId, "Test ID " + turnId, usesInvertedChecksum);
+                            250, turnId, "0530PM", "1", usesInvertedChecksum);
 
                     if (packet != null) {
                         sendPacketBroadcast(packet);
