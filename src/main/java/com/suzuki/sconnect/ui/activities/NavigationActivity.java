@@ -328,10 +328,10 @@ public class NavigationActivity extends AppCompatActivity
     private void sendIdentificationPacket() {
         android.content.SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
         boolean usesInvertedChecksum = prefs.getBoolean("usesInvertedChecksum", false);
-        String bikeName = prefs.getString("bike_name", "Suzuki");
+        String userName = prefs.getString("user_name", "USER");
 
         byte[] packet = com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder.buildIdentificationPacket(
-                bikeName, false, usesInvertedChecksum);
+                userName, false, usesInvertedChecksum);
 
         sendPacketBroadcast(packet);
     }

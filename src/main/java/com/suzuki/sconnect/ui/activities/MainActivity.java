@@ -247,7 +247,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         Intent serviceIntent = new Intent(this, BleConnectionService.class);
         serviceIntent.putExtra("device", device);
         serviceIntent.putExtra("deviceName", device.getName());
-        serviceIntent.putExtra("userName", "USER"); // Default username for welcome message
+        String savedUser = getSharedPreferences("SConnectPrefs", MODE_PRIVATE).getString("user_name", "USER");
+        serviceIntent.putExtra("userName", savedUser);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent);
