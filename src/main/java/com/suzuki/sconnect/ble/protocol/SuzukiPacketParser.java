@@ -82,9 +82,23 @@ public class SuzukiPacketParser {
             data.tripB = Integer.parseInt(tripBStr.trim()) / 10.0f;
             DebugLogger.d("PacketParser", "  Trip B: '" + tripBStr + "' → " + data.tripB + " km");
 
-            // Extract Gear (byte 23): ASCII character
-            data.gear = (char) packet[23];
-            DebugLogger.d("PacketParser", "  Gear: '" + data.gear + "'");
+            // Extract Gear (byte 23): Could be binary (0-6) or ASCII ('N', '1'-'6')
+            byte gearByte = packet[23];
+            DebugLogger.d("PacketParser", String.format("  Raw Gear Byte: 0x%02X (%d)", gearByte, gearByte & 0xFF));
+
+            if (gearByte >= 0 && gearByte <= 6) {
+                // Binary detected: 0=N, 1=Gear 1, ..., 6=Gear 6
+                data.gear = (gearByte == 0) ? 'N' : (char) ('0' + gearByte);
+                DebugLogger.d("PacketParser", "  → Decoded from BINARY: '" + data.gear + "'");
+            } else if (gearByte == 'N' || (gearByte >= '1' && gearByte <= '6')) {
+                // ASCII detected: 'N' (0x4E), '1' (0x31), etc.
+                data.gear = (char) gearByte;
+                DebugLogger.d("PacketParser", "  → Decoded from ASCII: '" + data.gear + "'");
+            } else {
+                // Fallback for unknown values
+                data.gear = '-';
+                DebugLogger.w("PacketParser", String.format("  → Unknown gear value: 0x%02X", gearByte));
+            }
 
             // Extract Fuel Level (byte 24): ASCII '1' to '6'
             data.fuelLevel = packet[24] - '0';
