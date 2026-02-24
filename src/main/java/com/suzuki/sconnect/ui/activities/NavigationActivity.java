@@ -60,7 +60,7 @@ public class NavigationActivity extends AppCompatActivity
     private Marker destinationMarker;
     private LocationComponent locationComponent;
 
-    // Throttling for navigation packets (Bug #2 fix)
+    // Throttling for navigation packets
     private final android.os.Handler clusterHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private int lastDistance = -1;
     private int lastTurnIcon = -1;
@@ -69,7 +69,15 @@ public class NavigationActivity extends AppCompatActivity
     private boolean isRerouting = false;
     private com.suzuki.sconnect.utils.MapplsRouteManager routeManager;
 
-    private static final int REROUTE_THRESHOLD_METERS = 50;
+    // Bug #1 fix: flag set when startActualNavigation runs before locationComponent
+    // is ready
+    private boolean pendingTrackingMode = false;
+
+    // Bug #2 fix: cache decoded route points so we don't re-decode on every GPS
+    // tick
+    private java.util.List<LatLng> cachedRoutePoints = null;
+
+    private static final int REROUTE_THRESHOLD_METERS = 75; // raised from 50 to absorb GPS jitter
     private static final long CLUSTER_INTERVAL_MS = 200;
 
     @Override
@@ -117,6 +125,21 @@ public class NavigationActivity extends AppCompatActivity
         maneuverIcon = findViewById(R.id.maneuver_icon);
 
         findViewById(R.id.btn_stop_nav).setOnClickListener(v -> stopNavigation());
+
+        // Bug #1 fix: re-center FAB snaps camera back to current location
+        findViewById(R.id.btn_recenter).setOnClickListener(v -> recenterCamera());
+    }
+
+    /** Snaps the camera back to the user's current location. */
+    private void recenterCamera() {
+        if (locationComponent != null && locationComponent.isLocationComponentActivated()
+                && locationComponent.getLastKnownLocation() != null) {
+            android.location.Location loc = locationComponent.getLastKnownLocation();
+            mapplsMap.animateCamera(CameraUpdateFactory.newLatLng(
+                    new LatLng(loc.getLatitude(), loc.getLongitude())));
+        } else {
+            Toast.makeText(this, "Current location not available", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -157,12 +180,34 @@ public class NavigationActivity extends AppCompatActivity
                 locationComponent.setLocationComponentEnabled(true);
                 locationComponent.setRenderMode(RenderMode.GPS); // Bearing-aware puck
                 android.util.Log.d("NavigationActivity", "Location component enabled successfully");
+
+                // Bug #1 fix: if startActualNavigation() already ran but locationComponent
+                // was null at that time, apply the deferred camera tracking mode now.
+                if (pendingTrackingMode) {
+                    pendingTrackingMode = false;
+                    applyTrackingCameraMode();
+                }
             } else {
                 android.util.Log.w("NavigationActivity", "Location component or style is null");
             }
         } catch (Exception e) {
             android.util.Log.e("NavigationActivity", "Error enabling location component", e);
         }
+    }
+
+    /** Applies TRACKING_GPS camera mode with navigation tilt & zoom. */
+    private void applyTrackingCameraMode() {
+        if (locationComponent == null || !locationComponent.isLocationComponentActivated())
+            return;
+        locationComponent.setCameraMode(CameraMode.TRACKING_GPS);
+        int topPadding = (int) (mapView.getHeight() * 0.65);
+        mapplsMap.setPadding(0, topPadding, 0, 0);
+        mapplsMap.animateCamera(CameraUpdateFactory.newCameraPosition(
+                new CameraPosition.Builder(mapplsMap.getCameraPosition())
+                        .tilt(45)
+                        .zoom(18.5)
+                        .build()));
+        android.util.Log.d("NavigationActivity", "Camera TRACKING_GPS mode applied");
     }
 
     @Override
@@ -178,14 +223,15 @@ public class NavigationActivity extends AppCompatActivity
                 android.util.Log.d("NavigationActivity",
                         "onLocationChanged: " + location.getLatitude() + ", " + location.getLongitude());
 
-                // GPS tracking camera mode handles camera updates automatically
-                // No need for manual camera animation
+                // CameraMode.TRACKING_GPS moves the camera automatically once set.
 
                 if (navigationSession != null) {
                     navigationSession.onLocationChanged(location);
                 }
 
-                if (isNavigationStarted && activeRoute != null && !isRerouting) {
+                // Bug #2 fix: guard only on activeRoute (not isNavigationStarted flag)
+                // so rerouting fires regardless of which flow started navigation.
+                if (activeRoute != null && !isRerouting) {
                     checkForOffRoute(location);
                 }
             }
@@ -297,20 +343,14 @@ public class NavigationActivity extends AppCompatActivity
             drawRouteOnMap(activeRoute);
             addDestinationMarker();
 
+            // Bug #1 fix: apply camera tracking mode, or defer if locationComponent
+            // is not yet ready (map style may still be loading).
             if (locationComponent != null && locationComponent.isLocationComponentActivated()) {
-                locationComponent.setCameraMode(CameraMode.TRACKING_GPS); // Follow bearing
-
-                // Shift puck to bottom-center (approx 70% from top)
-                int topPadding = (int) (mapView.getHeight() * 0.65);
-                mapplsMap.setPadding(0, topPadding, 0, 0);
-
-                // Apply perspective tilt and zoom while preserving current target (location
-                // puck)
-                mapplsMap.animateCamera(CameraUpdateFactory.newCameraPosition(
-                        new CameraPosition.Builder(mapplsMap.getCameraPosition())
-                                .tilt(45)
-                                .zoom(18.5)
-                                .build()));
+                applyTrackingCameraMode();
+            } else {
+                pendingTrackingMode = true; // will be applied in enableLocationComponent()
+                android.util.Log.d("NavigationActivity",
+                        "locationComponent not ready yet — deferring TRACKING_GPS mode");
             }
 
             navigationSession.startSession(activeRoute, this);
@@ -386,8 +426,10 @@ public class NavigationActivity extends AppCompatActivity
                 return;
             }
 
-            // Decode polyline to get coordinates
+            // Decode polyline to get coordinates and CACHE for off-route checks.
+            // Bug #2 fix: this avoids re-decoding thousands of points on every GPS tick.
             java.util.List<LatLng> routePoints = decodePolyline(encodedPolyline);
+            cachedRoutePoints = routePoints; // store for checkForOffRoute()
 
             if (routePoints.isEmpty()) {
                 android.util.Log.w("NavigationActivity", "No route points decoded");
@@ -402,7 +444,7 @@ public class NavigationActivity extends AppCompatActivity
             Polyline polyline = mapplsMap.addPolyline(polylineOptions);
             routePolylines.add(polyline);
 
-            android.util.Log.d("NavigationActivity", "Route drawn in blue");
+            android.util.Log.d("NavigationActivity", "Route drawn in blue with " + routePoints.size() + " points");
         } catch (Exception e) {
             android.util.Log.e("NavigationActivity", "Error drawing route", e);
         }
@@ -494,19 +536,25 @@ public class NavigationActivity extends AppCompatActivity
         if (activeRoute == null || location == null)
             return;
 
-        // Simplified off-route check: distance to polyline
-        // Decode geometry once or cache it
-        java.util.List<LatLng> points = decodePolyline(activeRoute.geometry());
-        double minDistance = Double.MAX_VALUE;
+        // Bug #2 fix: use the cached route points instead of re-decoding on every tick.
+        java.util.List<LatLng> points = cachedRoutePoints;
+        if (points == null || points.isEmpty())
+            return;
 
+        double minDistance = Double.MAX_VALUE;
         for (LatLng p : points) {
             float[] results = new float[1];
-            android.location.Location.distanceBetween(location.getLatitude(), location.getLongitude(), p.getLatitude(),
-                    p.getLongitude(), results);
+            android.location.Location.distanceBetween(
+                    location.getLatitude(), location.getLongitude(),
+                    p.getLatitude(), p.getLongitude(), results);
             if (results[0] < minDistance)
                 minDistance = results[0];
+            // Early-exit: no need to check further if already well within threshold
+            if (minDistance < REROUTE_THRESHOLD_METERS / 2.0)
+                break;
         }
 
+        android.util.Log.d("NavigationActivity", String.format("Off-route check: %.1fm from route", minDistance));
         if (minDistance > REROUTE_THRESHOLD_METERS) {
             triggerReroute(location);
         }

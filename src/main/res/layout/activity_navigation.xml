@@ -84,4 +84,18 @@
         </RelativeLayout>
     </androidx.cardview.widget.CardView>
 
+    <!-- Re-center camera FAB -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btn_recenter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:layout_marginBottom="96dp"
+        android:contentDescription="Re-center map"
+        app:fabSize="mini"
+        app:srcCompat="@android:drawable/ic_menu_mylocation"
+        app:backgroundTint="#CC212121"
+        app:tint="@android:color/white" />
+
 </FrameLayout>
