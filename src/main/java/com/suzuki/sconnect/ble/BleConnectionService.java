@@ -173,12 +173,14 @@ public class BleConnectionService extends Service {
             @Override
             public void onVehicleDataReceived(SuzukiPacketParser.VehicleData data) {
                 DebugLogger.i("Service",
-                        String.format("onVehicleDataReceived: ODO=%d, TripA=%.1f, TripB=%.1f, Gear=%c, Fuel=%d",
-                                data.odometer, data.tripA, data.tripB, data.gear, data.fuelLevel));
+                        String.format(
+                                "onVehicleDataReceived: Speed=%d, ODO=%d, TripA=%.1f, TripB=%.1f, Gear=%c, Fuel=%d",
+                                data.speed, data.odometer, data.tripA, data.tripB, data.gear, data.fuelLevel));
 
                 // Broadcast data to UI
                 Intent intent = new Intent(ACTION_VEHICLE_DATA);
                 intent.setPackage(getPackageName()); // Explicit package for internal broadcast
+                intent.putExtra("speed", data.speed);
                 intent.putExtra("odometer", data.odometer);
                 intent.putExtra("tripA", data.tripA);
                 intent.putExtra("tripB", data.tripB);
@@ -188,8 +190,8 @@ public class BleConnectionService extends Service {
                 DebugLogger.d("Service", "Sending broadcast: " + ACTION_VEHICLE_DATA);
                 sendBroadcast(intent);
 
-                updateNotification("Connected", String.format("ODO: %d km | Fuel: %d bars",
-                        data.odometer, data.fuelLevel));
+                updateNotification("Connected", String.format("Speed: %d km/h | ODO: %d km",
+                        data.speed, data.odometer));
             }
 
             @Override

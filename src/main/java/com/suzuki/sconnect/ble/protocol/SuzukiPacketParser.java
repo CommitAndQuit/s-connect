@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 public class SuzukiPacketParser {
 
     public static class VehicleData {
+        public int speed; // in km/h (bytes 2-4)
         public int odometer; // in km
         public float tripA; // in km (with decimal)
         public float tripB; // in km (with decimal)
@@ -19,8 +20,9 @@ public class SuzukiPacketParser {
 
         @Override
         public String toString() {
-            return String.format("ODO: %d km, Trip A: %.1f km, Trip B: %.1f km, Gear: %c, Fuel: %d bars",
-                    odometer, tripA, tripB, gear, fuelLevel);
+            return String.format(
+                    "Speed: %d km/h, ODO: %d km, Trip A: %.1f km, Trip B: %.1f km, Gear: %c, Fuel: %d bars",
+                    speed, odometer, tripA, tripB, gear, fuelLevel);
         }
     }
 
@@ -60,6 +62,11 @@ public class SuzukiPacketParser {
         }
 
         try {
+            // Extract Speed (bytes 2-4): 3-digit ASCII numeric string in km/h
+            String speedStr = new String(packet, 2, 3, StandardCharsets.UTF_8);
+            data.speed = Integer.parseInt(speedStr.trim());
+            DebugLogger.d("PacketParser", "  Speed: '" + speedStr + "' → " + data.speed + " km/h");
+
             // Extract ODO (bytes 5-10): 6-digit ASCII numeric string
             String odoStr = new String(packet, 5, 6, StandardCharsets.UTF_8);
             data.odometer = Integer.parseInt(odoStr.trim());

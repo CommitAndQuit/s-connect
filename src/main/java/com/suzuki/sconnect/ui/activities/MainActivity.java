@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     // UI Elements
     private ImageButton btnPower, btnSettings;
-    private TextView tvDeviceName, tvOdoValue, tvFuelValue, tvGearValue, tvTripAValue, tvTripBValue;
+    private TextView tvDeviceName, tvOdoValue, tvFuelValue, tvGearValue, tvTripAValue, tvTripBValue, tvSpeedValue;
     private ImageView ivBluetoothStatus;
     private View mapCard;
     private MapView mapView;
@@ -84,13 +84,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 String state = intent.getStringExtra("state");
                 updateConnectionUI(state);
             } else if (BleConnectionService.ACTION_VEHICLE_DATA.equals(action)) {
+                int speed = intent.getIntExtra("speed", 0);
                 int odo = intent.getIntExtra("odometer", 0);
                 float tripA = intent.getFloatExtra("tripA", 0);
                 float tripB = intent.getFloatExtra("tripB", 0);
                 char gear = (char) intent.getIntExtra("gear", 'N');
                 int fuel = intent.getIntExtra("fuelLevel", 0);
 
-                updateVehicleData(odo, tripA, tripB, gear, fuel);
+                updateVehicleData(speed, odo, tripA, tripB, gear, fuel);
             }
         }
     };
@@ -123,6 +124,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         tvGearValue = findViewById(R.id.tvGearValue);
         tvTripAValue = findViewById(R.id.tvTripAValue);
         tvTripBValue = findViewById(R.id.tvTripBValue);
+        tvSpeedValue = findViewById(R.id.tvSpeedValue);
         ivBluetoothStatus = findViewById(R.id.ivBluetoothStatus);
         mapCard = findViewById(R.id.mapCard);
         mapView = findViewById(R.id.map_view);
@@ -286,8 +288,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-    private void updateVehicleData(int odo, float tripA, float tripB, char gear, int fuel) {
+    private void updateVehicleData(int speed, int odo, float tripA, float tripB, char gear, int fuel) {
         runOnUiThread(() -> {
+            if (tvSpeedValue != null)
+                tvSpeedValue.setText(String.format("%d km/h", speed));
             tvOdoValue.setText(String.format("%,d", odo));
 
             // Convert 1-6 bars to percentage (roughly)
@@ -313,6 +317,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         btnPower.setColorFilter(null);
 
         // Reset vehicle data
+        if (tvSpeedValue != null)
+            tvSpeedValue.setText("-- km/h");
         tvOdoValue.setText("--");
         tvFuelValue.setText("--");
         tvGearValue.setText("-");
