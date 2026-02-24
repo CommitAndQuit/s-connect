@@ -385,9 +385,24 @@ public class NavigationActivity extends AppCompatActivity
             android.content.SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
             boolean usesInvertedChecksum = prefs.getBoolean("usesInvertedChecksum", false);
 
+            // Bug #5: Airplane mode check (overrides all except status 0 logic in original)
+            boolean airplaneMode = android.provider.Settings.System.getInt(
+                    getContentResolver(), android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) == 1;
+
             boolean hasGps = locationManager != null
                     && locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER);
-            String statusCode = isRerouting ? "2" : (hasGps ? "1" : "4");
+
+            // Priority: Airplane (0) > Reroute (2) > GPS Lost (4) > Normal (1)
+            String statusCode;
+            if (airplaneMode) {
+                statusCode = "0";
+            } else if (isRerouting) {
+                statusCode = "2";
+            } else if (!hasGps) {
+                statusCode = "4";
+            } else {
+                statusCode = "1";
+            }
 
             byte[] packet = com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder.buildNavigationPacket(
                     lastDistance != -1 ? lastDistance : 0,

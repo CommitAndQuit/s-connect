@@ -417,17 +417,164 @@ public class SuzukiPacketBuilder {
      * Mapped to Suzuki Instrument Cluster (Mappls ID -> Suzuki ID)
      */
     public static class TurnIcon {
-        public static final int NONE = 46; // Default/None
-        public static final int STRAIGHT = 1; // Mappls 0 -> Suzuki 1
-        public static final int TURN_LEFT = 4; // Mappls 3 -> Suzuki 4
-        public static final int TURN_RIGHT = 6; // Mappls 5 -> Suzuki 6
-        public static final int SLIGHT_LEFT = 3; // Mappls 2 -> Suzuki 3
-        public static final int SLIGHT_RIGHT = 5; // Mappls 4 -> Suzuki 5
-        public static final int U_TURN_LEFT = 7; // Mappls 6 -> Suzuki 7
-        public static final int U_TURN_RIGHT = 8; // Mappls 7 -> Suzuki 8
-        public static final int ROUNDABOUT = 9; // Generic roundabout
-        public static final int DESTINATION = 15; // Mappls 53 -> Suzuki 15
+        public static final int NONE = 46;
+        public static final int STRAIGHT = 1;
+        public static final int TURN_LEFT_2 = 2; // Pattern mapping from w0.java
+        public static final int SLIGHT_LEFT = 3;
+        public static final int TURN_LEFT = 4;
+        public static final int SLIGHT_RIGHT = 5;
+        public static final int TURN_RIGHT = 6;
+        public static final int U_TURN_LEFT = 7;
+        public static final int U_TURN_RIGHT = 8;
+        public static final int ROUNDABOUT = 9;
+        public static final int ROUNDABOUT_EXIT_1 = 9;
+        public static final int ROUNDABOUT_EXIT_2 = 9;
+        public static final int FAST_CONNECTION = 10;
+        public static final int ICON_11 = 11;
+        public static final int ICON_12 = 12;
+        public static final int ICON_13 = 13;
+        public static final int ICON_14 = 14;
+        public static final int DESTINATION = 15;
         public static final int ARRIVE = 15;
+        public static final int ICON_16 = 16;
+        public static final int ICON_17 = 17;
+        public static final int ICON_18 = 18;
+        public static final int ICON_19 = 19;
+        public static final int ICON_20 = 20;
+        public static final int ICON_21 = 21;
+        public static final int ICON_22 = 22;
+        public static final int ICON_23 = 23;
+        public static final int ICON_24 = 24;
+        public static final int ICON_25 = 25;
+        public static final int ICON_26 = 26;
+        public static final int ICON_27 = 27;
+        public static final int ICON_28 = 28;
+        public static final int ICON_29 = 29;
+        public static final int ICON_30 = 30;
+        public static final int FERRY = 31;
+        public static final int ICON_32 = 32;
+        public static final int ICON_33 = 33;
+        public static final int ICON_34 = 34;
+        public static final int ICON_35 = 35;
+        public static final int ICON_36 = 36;
+        public static final int ICON_37 = 37;
+        public static final int WEATHER_RAIN = 38;
+        public static final int WEATHER_TRAFFIC = 39;
+        public static final int ICON_40 = 40;
+        public static final int ICON_41 = 41;
+        public static final int ICON_42 = 42;
+        public static final int ICON_43 = 43;
+        public static final int ICON_44 = 44;
+        public static final int WEATHER_ALERT = 45;
+    }
+
+    /**
+     * Maps Mappls Maneuver ID to Suzuki Instrument Cluster Icon ID.
+     * Table extracted from decompiled original Suzuki app (w0.java).
+     *
+     * @param mapplsId The maneuver lookup ID from Mappls SDK
+     * @return The remapped Suzuki cluster icon ID (byte value)
+     */
+    public static int mapMapplsToClusterIcon(int mapplsId) {
+        switch (mapplsId) {
+            case 0:
+                return 1; // Straight
+            case 1:
+                return 2;
+            case 2:
+                return 3;
+            case 3:
+                return 4;
+            case 4:
+                return 5;
+            case 5:
+                return 6;
+            case 6:
+                return 7;
+            case 7:
+                return 8;
+            case 8:
+            case 9:
+            case 10:
+                return 9; // Roundabouts
+            case 75:
+                return 10;
+            case 11:
+                return 11;
+            case 12:
+                return 12;
+            case 13:
+                return 13;
+            case 14:
+                return 14;
+            case 53:
+                return 15; // Destination/Arrive
+            case 54:
+                return 16;
+            case 55:
+                return 17;
+            case 56:
+                return 18;
+            case 57:
+                return 19;
+            case 65:
+                return 20;
+            case 66:
+                return 21;
+            case 67:
+                return 22;
+            case 68:
+                return 23;
+            case 69:
+                return 24;
+            case 70:
+                return 25;
+            case 71:
+                return 26;
+            case 19:
+                return 27;
+            case 20:
+                return 28;
+            case 17:
+                return 29;
+            case 18:
+                return 30;
+            case 15:
+                return 31;
+            case 16:
+            case 31:
+                return 32;
+            case 28:
+                return 31;
+            case 21:
+                return 33;
+            case 22:
+                return 34;
+            case 23:
+                return 35;
+            case 24:
+                return 36;
+            case 25:
+                return 37;
+            case 73:
+                return 38;
+            case 41:
+                return 39;
+            case 50:
+                return 40;
+            case 51:
+                return 41;
+            case 52:
+                return 42;
+            case 36:
+                return 43;
+            case 74:
+                return 44;
+            case 72:
+                return 45;
+            default:
+                return TurnIcon.NONE;
+        }
     }
 
     /**
@@ -509,7 +656,15 @@ public class SuzukiPacketBuilder {
 
             // 4. Manual overrides for binary/protocol logic
             packet[0] = HEADER; // 0xA5
-            packet[2] = (byte) turnIconId; // Real binary Maneuver Icon ID
+
+            // Override icon to NONE (46) if status is not normal navigating (1, 3, or 5)
+            // This prevents old turn arrows from persisting during reroute/gps lost states
+            int effectiveIconId = turnIconId;
+            if (!"1".equals(statusCode) && !"3".equals(statusCode) && !"5".equals(statusCode)) {
+                effectiveIconId = TurnIcon.NONE;
+            }
+
+            packet[2] = (byte) effectiveIconId; // Real binary Maneuver Icon ID
             packet[3] = (byte) 0xFF;
 
             // Padding bytes 15-17

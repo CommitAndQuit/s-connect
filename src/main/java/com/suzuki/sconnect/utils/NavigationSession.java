@@ -172,27 +172,38 @@ public class NavigationSession {
         if (maneuver == null)
             return SuzukiPacketBuilder.TurnIcon.NONE;
 
-        // PRIMARY: Use the official Mappls API maneuver_id — this IS the cluster icon
-        // byte
+        String type = maneuver.type();
+
+        // PRIMARY: Use the official Mappls SDK maneuverId and remap it to Suzuki icon
+        // ID
         Integer maneuverId = maneuver.maneuverId();
-        if (maneuverId != null && maneuverId > 0) {
+        if (maneuverId != null && maneuverId >= 0) {
             Log.d(TAG, "Using API maneuverId: " + maneuverId);
-            return maneuverId;
+
+            // Bug #4: Handle roundabout exit directional icons
+            if (type != null && (type.equalsIgnoreCase("roundabout") || type.equalsIgnoreCase("rotary"))) {
+                int roundaboutIcon = calculateRoundaboutIconId(step);
+                if (roundaboutIcon != SuzukiPacketBuilder.TurnIcon.NONE) {
+                    return roundaboutIcon;
+                }
+            }
+
+            return SuzukiPacketBuilder.mapMapplsToClusterIcon(maneuverId);
         }
 
         // FALLBACK: If maneuverId is not provided, use type+modifier strings
-        String type = maneuver.type();
         String modifier = maneuver.modifier();
         Log.w(TAG, "maneuverId null, falling back to string mapping: type=" + type + " modifier=" + modifier);
 
         if (type == null)
             return SuzukiPacketBuilder.TurnIcon.NONE;
 
-        switch (type) {
+        switch (type.toLowerCase()) {
             case "arrive":
                 return SuzukiPacketBuilder.TurnIcon.DESTINATION;
             case "depart":
             case "new name":
+            case "continue":
                 return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
             case "turn":
             case "merge":
@@ -202,27 +213,50 @@ public class NavigationSession {
             case "end of road":
                 if (modifier == null)
                     return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
+                modifier = modifier.toLowerCase();
+
+                // ORDER MATTERS: Specific modifiers must be checked before generic
+                // "left"/"right"
+                if (modifier.contains("slight left"))
+                    return SuzukiPacketBuilder.TurnIcon.SLIGHT_LEFT;
                 if (modifier.contains("sharp left"))
                     return SuzukiPacketBuilder.TurnIcon.TURN_LEFT;
                 if (modifier.contains("left"))
                     return SuzukiPacketBuilder.TurnIcon.TURN_LEFT;
-                if (modifier.contains("slight left"))
-                    return SuzukiPacketBuilder.TurnIcon.SLIGHT_LEFT;
+
+                if (modifier.contains("slight right"))
+                    return SuzukiPacketBuilder.TurnIcon.SLIGHT_RIGHT;
                 if (modifier.contains("sharp right"))
                     return SuzukiPacketBuilder.TurnIcon.TURN_RIGHT;
                 if (modifier.contains("right"))
                     return SuzukiPacketBuilder.TurnIcon.TURN_RIGHT;
-                if (modifier.contains("slight right"))
-                    return SuzukiPacketBuilder.TurnIcon.SLIGHT_RIGHT;
+
                 if (modifier.contains("uturn"))
                     return SuzukiPacketBuilder.TurnIcon.U_TURN_LEFT;
                 return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
             case "roundabout":
             case "rotary":
             case "exit roundabout":
+            case "roundabout turn":
                 return SuzukiPacketBuilder.TurnIcon.ROUNDABOUT;
             default:
                 return SuzukiPacketBuilder.TurnIcon.STRAIGHT;
         }
+    }
+
+    /**
+     * Recalculates the roundabout icon ID based on the exit bearing angle.
+     * Ported from decompiled mapping logic (c.I and c.u).
+     */
+    private int calculateRoundaboutIconId(LegStep currentStep) {
+        if (steps == null || currentStepIndex + 1 >= steps.size()) {
+            return SuzukiPacketBuilder.TurnIcon.NONE;
+        }
+
+        LegStep nextStep = steps.get(currentStepIndex + 1);
+        int mapplsId = RoundaboutAngleCalculator.getManeuverId(currentStep, nextStep);
+
+        // 5. Remap to Suzuki cluster icon
+        return SuzukiPacketBuilder.mapMapplsToClusterIcon(mapplsId);
     }
 }
