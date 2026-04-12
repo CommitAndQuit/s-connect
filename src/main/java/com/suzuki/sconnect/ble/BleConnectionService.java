@@ -31,7 +31,7 @@ import java.util.Locale;
  * Foreground BLE Service with extensive debug broadcasts
  */
 public class BleConnectionService extends Service {
-    private static final String CHANNEL_ID = "BLE_DEBUG_CHANNEL";
+    private static final String CHANNEL_ID = "SCONNECT_SERVICE_CHANNEL";
     private static final int NOTIFICATION_ID = 1001;
 
     public static final String ACTION_STATE_CHANGE = "com.suzuki.sconnect.STATE_CHANGE";
@@ -345,9 +345,9 @@ public class BleConnectionService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "BLE Debug Service",
+                    "SConnect Service",
                     NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("Suzuki BLE connection debug service");
+            channel.setDescription("SConnect Bluetooth Connectivity Service");
             NotificationManager manager = getSystemService(NotificationManager.class);
             manager.createNotificationChannel(channel);
             DebugLogger.d("Service", "Notification channel created");

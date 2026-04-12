@@ -6,7 +6,7 @@ import android.util.Log;
  * Centralized logging utility.
  */
 public class DebugLogger {
-    private static final String TAG = "SuzukiBLE";
+    private static final String TAG = "SConnectBLE";
 
     // Debug logging methods
     public static void d(String tag, String message) {
