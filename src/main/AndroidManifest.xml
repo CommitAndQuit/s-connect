@@ -52,6 +52,12 @@
             android:exported="false"
             android:foregroundServiceType="location"/>
 
+        <service
+            android:name=".services.NavigationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location"/>
+
         <activity
             android:name=".ui.activities.RouteSelectionActivity"
             android:exported="false"
