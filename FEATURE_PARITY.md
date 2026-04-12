@@ -10,9 +10,9 @@
 
 ```mermaid
 pie title "SConnect Feature Completion"
-    "Complete (✅)" : 24
-    "Partial (🟡)" : 8
-    "Missing (❌)" : 34
+    "Complete (✅)" : 31
+    "Partial (🟡)" : 7
+    "Missing (❌)" : 28
     "Skipped (🚫)" : 4
 ```
 
@@ -20,7 +20,7 @@ pie title "SConnect Feature Completion"
 
 ## Executive Summary
 
-The official Suzuki app contains **~45+ screens/activities** spanning vehicle management, telemetry, navigation, service scheduling, and social/content features. SConnect currently covers **~12 core activities** including BLE connectivity, navigation, trip recording, last parked location, and real-time telemetry. The overall feature parity is estimated at **~42%**.
+The official Suzuki app contains **~45+ screens/activities** spanning vehicle management, telemetry, navigation, service scheduling, and social/content features. SConnect currently covers **~18 core activities** including BLE connectivity, navigation service, trip recording, last parked location, fuel charts, and service reminders. The overall feature parity is estimated at **~52%**.
 
 ---
 
@@ -59,7 +59,7 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 | 2.4 | Gear Position | Parsed from packet byte, displays N/1/2/3/4/5 | Fixed in conv `f7f65c29` — handled binary/ASCII auto-detection | ✅ | Fully functional |
 | 2.5 | Fuel Consumption Calc | `HomeScreenActivity.onClusterDataRecev()` — Complex real-time km/l calculation from bytes 25-27 | Implemented in `SuzukiPacketParser` (13/11-bit split formula) | ✅ | Integrated with `BleConnectionService` |
 | 2.6 | Real-time Speed | Investigated in conv `1c7998f1` — speed not in `?7` packet | Both: No speed data from cluster | ✅ | Same limitation in both |
-| 2.7 | Last Synced ODO Storage | Stores last synced ODO in SharedPrefs per vehicle | Not implemented | ❌ | |
+| 2.7 | Last Synced ODO Storage | Stores last synced ODO in SharedPrefs per vehicle | Implemented in `VehicleStateHolder` using SharedPrefs | ✅ | Persists across app restarts |
 | 2.8 | e-ACCESS / EV Telemetry | Separate energy consumption logic (`Energy Consumption` vs `Fuel Consumption`) | Not implemented | ❌ | Only relevant for e-ACCESS scooter |
 
 ---
@@ -79,7 +79,7 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 | 3.9 | Camera Follow GPS | Map camera automatically tracks user position | Camera follow logic added in conv `ed691052` | ✅ | Implemented |
 | 3.10 | Airplane Mode Detection | Detects airplane mode, adjusts navigation behavior | Bug identified in conv `c60dcc9b`, fix planned | 🟡 | Known gap |
 | 3.11 | GPS Provider Check | Handles GPS disable gracefully | Identified in conv `c60dcc9b` | 🟡 | Partially handled |
-| 3.12 | Navigation as Service | Official runs navigation data send as background-safe logic | Investigated in conv `2d662aeb`, not yet migrated | 🟡 | Activity-based, killed by battery saver |
+| 3.12 | Navigation as Service | Official runs navigation data send as background-safe logic | Migrated to Foreground `NavigationService` in conv `900011a1` | ✅ | Stable background navigation |
 | 3.13 | Route with Nearby Search | `RouteNearByActivity` — Nearby POI (fuel, food, etc.) along route | Not implemented | ❌ | |
 | 3.14 | Trip Recording | `TripActivity` + `TripDetailsActivity` — Records rides with Recent/Favourites, stores in Realm DB | `TripHistoryActivity` + `TripRecord` — Persistent trip logging | ✅ | Implemented with Realm DB |
 | 3.15 | Trip Details / Replay | View past trip details including route on map | `TripDetailActivity` — Shows route, stats, and time | ✅ | Working |
@@ -92,10 +92,10 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 
 | # | Feature | Official App | SConnect | Parity | Notes |
 |:---:|:---|:---|:---|:---:|:---|
-| 4.1 | Daily Fuel Consumption Chart | `FuelConsumptionActivity` — Tabs: DAILY / MONTHLY, MPChart combined charts | Not implemented | ❌ | Uses MPAndroidChart library |
-| 4.2 | Fuel Economy Average | `FuelEconomyAverageActivity` — Daily, weekly, monthly averages with combined bar+line charts | Not implemented | ❌ | Complex statistical analysis |
-| 4.3 | Fuel Data Storage | Realm DB models: `j.class` (daily), `q.class` (monthly), `C.class` (weekly) | Not implemented | ❌ | No persistent telemetry storage |
-| 4.4 | Mileage Tracking | Calculated from ODO + fuel consumption packets | Not implemented | ❌ | |
+| 4.1 | Daily Fuel Consumption Chart | `FuelConsumptionActivity` — Tabs: DAILY / MONTHLY, MPChart combined charts | Integrated MPAndroidChart with `DailyFuelRecord` Realm model | ✅ | Implemented in `FuelEconomyActivity` |
+| 4.2 | Fuel Economy Average | `FuelEconomyAverageActivity` — Daily, weekly, monthly averages with combined bar+line charts | Implemented average calculations in `FuelChartFragment` | ✅ | Visual data analysis |
+| 4.3 | Fuel Data Storage | Realm DB models: `j.class` (daily), `q.class` (monthly), `C.class` (weekly) | Persistent storage using `DailyFuelRecord` Realm model | ✅ | Time-series telemetry storage |
+| 4.4 | Mileage Tracking | Calculated from ODO + fuel consumption packets | Calculated in `SuzukiPacketParser` | ✅ | |
 
 ---
 
@@ -103,9 +103,9 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 
 | # | Feature | Official App | SConnect | Parity | Notes |
 |:---:|:---|:---|:---|:---:|:---|
-| 5.1 | Periodic Vehicle Service | `PeriodicVehicleServiceActivity` — Full service scheduler with date picker, km entry, notification snooze | Not implemented | ❌ | 785-line activity with complex scheduling |
-| 5.2 | Service Parameters | Different service items per vehicle type (Scooter vs Motorcycle vs EV) with specific intervals | Not implemented | ❌ | Model-specific intervals |
-| 5.3 | Service Notifications | AlarmManager-based scheduled reminders with snooze/dismiss | Not implemented | ❌ | |
+| 5.1 | Periodic Vehicle Service | `PeriodicVehicleServiceActivity` — Full service scheduler with date picker, km entry, notification snooze | Implemented `ServiceRemindersActivity` with custom intervals | ✅ | Core service tracking |
+| 5.2 | Service Parameters | Different service items per vehicle type (Scooter vs Motorcycle vs EV) with specific intervals | Fixed intervals implemented | 🟡 | Model-specific logic pending |
+| 5.3 | Service Notifications | AlarmManager-based scheduled reminders with snooze/dismiss | Back-end logic using `ServiceReminderWorker` and `WorkManager` | ✅ | Battery-efficient notifications |
 | 5.4 | Ideal Service Params | `IdealParamActivity` — Shows recommended service parameters image | Not implemented | ❌ | Simple info screen |
 | 5.5 | Service Notification History | `NotificationHistoryActivity` — Shows all past service notifications | Not implemented | ❌ | |
 
@@ -189,19 +189,19 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 | Category | Total Features | ✅ Complete | 🟡 Partial | ❌ Missing | 🚫 Skipped |
 |:---|:---:|:---:|:---:|:---:|:---:|
 | **BLE & Connectivity** | 5 | 4 | 1 | 0 | 0 |
-| **Vehicle Telemetry** | 8 | 6 | 0 | 2 | 0 |
-| **Navigation** | 17 | 11 | 3 | 2 | 1 |
-| **Fuel Economy** | 4 | 0 | 0 | 4 | 0 |
-| **Service & Maintenance** | 5 | 0 | 0 | 5 | 0 |
+| **Vehicle Telemetry** | 8 | 7 | 0 | 1 | 0 |
+| **Navigation** | 17 | 12 | 2 | 2 | 1 |
+| **Fuel Economy** | 4 | 4 | 0 | 0 | 0 |
+| **Service & Maintenance** | 5 | 2 | 1 | 2 | 0 |
 | **Vehicle/Profile Mgmt** | 8 | 0 | 0 | 8 | 0 |
 | **Location Features** | 3 | 3 | 0 | 0 | 0 |
 | **Notifications** | 3 | 0 | 3 | 0 | 0 |
 | **Help & Information** | 6 | 0 | 0 | 6 | 0 |
 | **Subscription** | 3 | 0 | 0 | 0 | 3 |
 | **UX / App Shell** | 8 | 0 | 1 | 7 | 0 |
-| **TOTAL** | **70** | **24** | **8** | **34** | **4** |
+| **TOTAL** | **70** | **31** | **7** | **28** | **4** |
 
-> **Overall Parity: ~42.4%** (counting partial as 0.5) — **28/66 effective features** (excluding proprietary)
+> **Overall Parity: ~52.3%** (counting partial as 0.5) — **34.5/66 effective features** (excluding proprietary)
 
 ---
 
@@ -217,15 +217,17 @@ Based on rider value, technical feasibility, and community demand:
 | **P1** | Last Parked Location (#7.1) | Medium | ✅ | Integrated map + sharing |
 | **P2** | Trip Recording & History (#3.14, #3.15) | Medium | ✅ | Realm DB storage implemented |
 | **P3** | Fuel Consumption Calculation (#2.5) | Medium | ✅ | 13/11-bit telemetry parsing |
+| **P4** | Navigation Service (#3.12) | Medium | ✅ | Migrated from Activity to Foreground Service |
+| **P5** | Fuel Economy Charts (#4.1, #4.2) | High | ✅ | Integrated MPAndroidChart |
+| **P7** | Service Reminders (#5.1) | High | ✅ | Implemented scheduler + notifications |
+| **P15** | Vehicle Data Persistence (#2.7) | Low | ✅ | `VehicleStateHolder` with SharedPrefs |
 
 ### Tier 2 — Differentiation Features *(Medium Term)*
 
 | Priority | Feature | Effort | Why |
 |:---:|:---|:---:|:---|
-| **P4** | Navigation as Foreground Service (#3.12) | Medium | Battery saver kills current implementation |
-| **P5** | Fuel Economy Charts (#4.1, #4.2) | High | Visual appeal, data-driven riders |
 | **P6** | Dark Mode (#11.4) | Medium | Modern UX expectation |
-| **P7** | Periodic Service Reminders (#5.1) | High | Lays foundation for AI maintenance narrator |
+| **P9** | Splash + Onboarding (#11.1, 11.2) | Low | First impression polish |
 
 ### Tier 3 — Polish & Completeness *(Long Term)*
 

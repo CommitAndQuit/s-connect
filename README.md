@@ -21,9 +21,7 @@ Forget the limitations of proprietary apps—SConnect is built by riders, for ri
 
 | Splash & Setup | Live Navigation | Vehicle Telemetry |
 | :---: | :---: | :---: |
-| ![Splash Screen](https://via.placeholder.com/200x400?text=Connect+Screen) | ![Navigation](https://via.placeholder.com/200x400?text=Navigation+View) | ![Dashboard](https://via.placeholder.com/200x400?text=Telemetry+View) |
-
-> *Check out our [Demo Video](https://github.com/CommitAndQuit/s-connect) to see SConnect in action on a Suzuki V-Strom/Burgman cluster!*
+| <img src="Screenshot_20260412-223028.png" width="200" alt="Splash Screen"> | <img src="Screenshot_20260412-223041.png" width="200" alt="Navigation View"> | <img src="Screenshot_20260412-223054.png" width="200" alt="Telemetry View"> |
 
 ---
 

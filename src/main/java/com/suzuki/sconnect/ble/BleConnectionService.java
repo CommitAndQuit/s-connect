@@ -134,34 +134,46 @@ public class BleConnectionService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         DebugLogger.i("Service", "=== BLE Service Started ===");
 
-        // Start as foreground service
-        Notification notification = buildNotification("Initializing...", "");
+        Notification notification = buildNotification("Waiting for vehicle...", "Scanning in background");
         startForeground(NOTIFICATION_ID, notification);
 
-        if (intent == null) {
-            return START_STICKY;
+        BluetoothDevice device = null;
+        String deviceName = "Suzuki";
+
+        if (intent != null && intent.hasExtra("device")) {
+            device = intent.getParcelableExtra("device");
+            userName = intent.getStringExtra("userName");
+            deviceName = intent.getStringExtra("deviceName");
+
+            getSharedPreferences("SConnectPrefs", MODE_PRIVATE)
+                    .edit()
+                    .putString("ble_mac_address", device.getAddress())
+                    .putString("ble_device_name", deviceName)
+                    .putString("ble_user_name", userName)
+                    .apply();
+        } else {
+            SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+            String macAddress = prefs.getString("ble_mac_address", null);
+            if (macAddress != null) {
+                android.bluetooth.BluetoothManager bm = (android.bluetooth.BluetoothManager) getSystemService(android.content.Context.BLUETOOTH_SERVICE);
+                if (bm != null && bm.getAdapter() != null && bm.getAdapter().isEnabled()) {
+                    device = bm.getAdapter().getRemoteDevice(macAddress);
+                    deviceName = prefs.getString("ble_device_name", "Suzuki");
+                    userName = prefs.getString("ble_user_name", "USER");
+                    DebugLogger.i("Service", "Auto-recovering device from SharedPreferences: " + macAddress);
+                }
+            }
         }
 
-        // Get connection parameters from intent
-        BluetoothDevice device = intent.getParcelableExtra("device");
-        userName = intent.getStringExtra("userName");
-        String deviceName = intent.getStringExtra("deviceName");
-
-        // Only re-initialize if we have a valid device, otherwise we might be
-        // restarting from stickiness
-        // or just receiving a command without re-connection intent
         if (device != null) {
             usesInvertedChecksum = SuzukiPacketBuilder.usesInvertedChecksum(deviceName);
 
             DebugLogger.i("Service", "Connection parameters:");
             DebugLogger.d("Service", "  Device: " + deviceName);
-            DebugLogger.d("Service", "  Address: " + (device != null ? device.getAddress() : "null"));
+            DebugLogger.d("Service", "  Address: " + device.getAddress());
             DebugLogger.d("Service", "  Username: " + userName);
-            DebugLogger.d("Service",
-                    "  Checksum Type: " + (usesInvertedChecksum ? "INVERTED (255-sum)" : "DIRECT (sum)"));
+            DebugLogger.d("Service", "  Checksum Type: " + (usesInvertedChecksum ? "INVERTED (255-sum)" : "DIRECT (sum)"));
 
-            // Save checksum type to prefs for other components
-            // (NotificationService/CallReceiver)
             getSharedPreferences("SConnectPrefs", MODE_PRIVATE)
                     .edit()
                     .putBoolean("usesInvertedChecksum", usesInvertedChecksum)
@@ -169,9 +181,8 @@ public class BleConnectionService extends Service {
 
             connectToDevice(device);
         } else {
-            // Check if we are already connected?
-            // For now just log, if we are sticky restart with null intent we wait.
-            DebugLogger.w("Service", "onStartCommand with null device (sticky restart?)");
+            DebugLogger.w("Service", "onStartCommand with null device and no saved MAC. Stopping self.");
+            stopSelf();
         }
 
         return START_STICKY;

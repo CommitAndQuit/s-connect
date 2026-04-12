@@ -350,6 +350,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         Intent serviceIntent = new Intent(this, BleConnectionService.class);
         stopService(serviceIntent);
 
+        // Clear saved MAC address so it doesn't auto-connect again until explicitly connected
+        getSharedPreferences("SConnectPrefs", MODE_PRIVATE)
+                .edit()
+                .remove("ble_mac_address")
+                .apply();
+
         // Update UI immediately
         isConnected = false;
         tvDeviceName.setText("Disconnected");
@@ -357,7 +363,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         ivBluetoothStatus.setColorFilter(Color.parseColor("#EF4444"));
         btnPower.setColorFilter(null);
 
-        Toast.makeText(this, "Disconnected from vehicle", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Disconnected from vehicle. Auto-connect disabled.", Toast.LENGTH_SHORT).show();
     }
 
     /**
