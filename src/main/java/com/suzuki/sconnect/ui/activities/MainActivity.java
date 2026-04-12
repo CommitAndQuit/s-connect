@@ -69,7 +69,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ImageButton btnPower, btnSettings;
     private TextView tvDeviceName, tvOdoValue, tvFuelValue, tvGearValue, tvTripAValue, tvTripBValue, tvSpeedValue;
     private TextView tvMileageValue;        // P3: live mileage
-    private MaterialCardView cardLastParked, cardTripHistory, cardFuelEconomy;
+    private MaterialCardView cardLastParked, cardTripHistory, cardFuelEconomy, cardService;
     private ImageView ivBluetoothStatus;
     private View mapCard;
     private MapView mapView;
@@ -139,6 +139,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         cardLastParked = findViewById(R.id.cardLastParked);        // P1
         cardFuelEconomy = findViewById(R.id.cardFuelEconomy);      // P5
         cardTripHistory = findViewById(R.id.cardTripHistory);       // P2
+        cardService = findViewById(R.id.cardService);               // P7
         ivBluetoothStatus = findViewById(R.id.ivBluetoothStatus);
         mapCard = findViewById(R.id.mapCard);
         mapView = findViewById(R.id.map_view);
@@ -175,6 +176,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // P5: Fuel Economy card
         cardFuelEconomy.setOnClickListener(v ->
                 startActivity(new Intent(this, FuelEconomyActivity.class)));
+
+        // P7: Service Reminders card
+        cardService.setOnClickListener(v ->
+                startActivity(new Intent(this, ServiceRemindersActivity.class)));
 
         // Setup scroll listener to open full-screen on scroll up
         setupScrollAnimation();

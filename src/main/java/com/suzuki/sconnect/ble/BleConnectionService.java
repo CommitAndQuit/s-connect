@@ -259,6 +259,13 @@ public class BleConnectionService extends Service {
 
                 // Broadcast data to UI
                 Intent intent = new Intent(ACTION_VEHICLE_DATA);
+
+                // Save last ODO to prefs for offline access (P7)
+                getSharedPreferences("SConnectPrefs", MODE_PRIVATE)
+                        .edit()
+                        .putInt("last_odometer", data.odometer)
+                        .apply();
+
                 intent.setPackage(getPackageName()); // Explicit package for internal broadcast
                 intent.putExtra("speed", data.speed);
                 intent.putExtra("odometer", data.odometer);

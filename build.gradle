@@ -67,4 +67,7 @@ dependencies {
 
     // MPAndroidChart for Fuel Economy Charts (P5)
     implementation 'com.github.PhilJay:MPAndroidChart:3.1.0'
+
+    // WorkManager for Periodic Service Reminders (P7)
+    implementation "androidx.work:work-runtime:2.9.0"
 }
