@@ -59,7 +59,7 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/card_background"
                     android:orientation="vertical"
-                    android:padding="32dp">
+                    android:padding="24dp">
 
                     <!-- ODO and Fuel Section -->
                     <LinearLayout
@@ -95,7 +95,7 @@
                                     android:layout_height="wrap_content"
                                     android:text="---"
                                     android:textColor="@color/text_primary"
-                                    android:textSize="40sp"
+                                    android:textSize="48sp"
                                     android:fontFamily="sans-serif-black"
                                     android:transitionName="odoValueTransition" />
 
@@ -106,7 +106,7 @@
                                     android:textColor="@color/text_secondary"
                                     android:textSize="16sp"
                                     android:layout_marginStart="6dp"
-                                    android:layout_marginBottom="10dp" />
+                                    android:layout_marginBottom="8dp" />
                             </LinearLayout>
                         </LinearLayout>
 
@@ -137,7 +137,7 @@
                                     android:layout_height="wrap_content"
                                     android:text="--%"
                                     android:textColor="@color/text_primary"
-                                    android:textSize="30sp"
+                                    android:textSize="40sp"
                                     android:fontFamily="sans-serif-black"
                                     android:transitionName="fuelValueTransition" />
 
@@ -155,8 +155,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:background="@color/glass_border"
-                        android:layout_marginTop="32dp"
-                        android:layout_marginBottom="32dp" />
+                        android:layout_marginTop="24dp"
+                        android:layout_marginBottom="24dp" />
 
                     <!-- Gear, Trip, Speed Row -->
                     <LinearLayout
@@ -203,7 +203,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="-- km"
                                 android:textColor="@color/text_primary"
-                                android:textSize="22sp" />
+                                android:textSize="18sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -223,7 +223,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="-- km"
                                 android:textColor="@color/text_primary"
-                                android:textSize="22sp" />
+                                android:textSize="18sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -243,7 +243,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="-- km/h"
                                 android:textColor="@color/accent_blue_light"
-                                android:textSize="22sp"
+                                android:textSize="18sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
                     </LinearLayout>
@@ -252,8 +252,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
                         android:background="@color/glass_border"
-                        android:layout_marginTop="24dp"
-                        android:layout_marginBottom="24dp" />
+                        android:layout_marginTop="20dp"
+                        android:layout_marginBottom="20dp" />
 
                     <!-- Mileage -->
                     <LinearLayout
@@ -279,15 +279,15 @@
                                 android:layout_height="wrap_content"
                                 android:text="--"
                                 android:textColor="@color/accent_blue_light"
-                                android:textSize="32sp"
+                                android:textSize="28sp"
                                 android:fontFamily="sans-serif-black" />
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text=" km/L"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="16sp"
-                                android:layout_marginBottom="6dp" />
+                                android:textSize="14sp"
+                                android:layout_marginBottom="3dp" />
                         </LinearLayout>
                     </LinearLayout>
 

@@ -4,6 +4,7 @@ import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.services.NavigationService;
 import com.suzuki.sconnect.utils.MapplsRouteManager;
 import com.suzuki.sconnect.utils.NavigationStateHolder;
+import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -276,8 +277,6 @@ public class NavigationActivity extends AppCompatActivity
         isNavigationStarted = true;
         activeRoute = route;
 
-        if (guidanceCard != null) guidanceCard.setVisibility(android.view.View.VISIBLE);
-
         Fragment fragment = getSupportFragmentManager().findFragmentByTag(DirectionFragment.class.getSimpleName());
         if (fragment != null) {
             getSupportFragmentManager().beginTransaction().hide(fragment).commit();
@@ -301,16 +300,74 @@ public class NavigationActivity extends AppCompatActivity
         } else {
             startService(serviceIntent);
         }
+
+        // Fetch immediate update if already cached by session startup or re-opening
+        updateUIFromCachedState();
+    }
+
+    private void updateUIFromCachedState() {
+        NavigationStateHolder state = NavigationStateHolder.getInstance();
+        if (state.getLastDistance() != -1 && state.getLastInstruction() != null && !state.getLastInstruction().isEmpty()) {
+            updateGuidanceUI(state.getLastDistance(), state.getLastTurnIcon(), state.getLastInstruction());
+        }
     }
 
     private void updateGuidanceUI(int distanceMeters, int turnIconId, String instruction) {
+        if (guidanceCard != null && guidanceCard.getVisibility() != android.view.View.VISIBLE) {
+            guidanceCard.setVisibility(android.view.View.VISIBLE);
+        }
         if (tvDistance != null) {
-            String distText = (distanceMeters < 1000) ? String.format("In %d m", distanceMeters)
-                    : String.format("In %.1f km", distanceMeters / 1000.0);
+            String distText = (distanceMeters < 1000) ? String.format(java.util.Locale.US, "In %d m", distanceMeters)
+                    : String.format(java.util.Locale.US, "In %.1f km", distanceMeters / 1000.0);
             tvDistance.setText(distText);
         }
         if (tvInstruction != null) {
             tvInstruction.setText(instruction);
+        }
+        if (maneuverIcon != null) {
+            int drawableRes = mapTurnIconToDrawable(turnIconId);
+            if (drawableRes == 0) {
+                maneuverIcon.setImageDrawable(null);
+            } else {
+                maneuverIcon.setImageResource(drawableRes);
+            }
+        }
+    }
+
+    private int mapTurnIconToDrawable(int turnIconId) {
+        if (turnIconId == SuzukiPacketBuilder.TurnIcon.NONE) {
+            return 0;
+        }
+
+        switch (turnIconId) {
+            case SuzukiPacketBuilder.TurnIcon.STRAIGHT:
+            case SuzukiPacketBuilder.TurnIcon.ICON_11:
+            case SuzukiPacketBuilder.TurnIcon.ICON_12:
+            case SuzukiPacketBuilder.TurnIcon.ICON_13:
+            case SuzukiPacketBuilder.TurnIcon.ICON_44:
+                return R.drawable.ic_nav_straight;
+
+            case SuzukiPacketBuilder.TurnIcon.TURN_LEFT:
+            case SuzukiPacketBuilder.TurnIcon.TURN_LEFT_2:
+            case SuzukiPacketBuilder.TurnIcon.SLIGHT_LEFT:
+                return R.drawable.ic_nav_turn_left;
+
+            case SuzukiPacketBuilder.TurnIcon.TURN_RIGHT:
+            case SuzukiPacketBuilder.TurnIcon.SLIGHT_RIGHT:
+                return R.drawable.ic_nav_turn_right;
+
+            case SuzukiPacketBuilder.TurnIcon.U_TURN_LEFT:
+            case SuzukiPacketBuilder.TurnIcon.U_TURN_RIGHT:
+                return R.drawable.ic_nav_uturn;
+
+            case SuzukiPacketBuilder.TurnIcon.ROUNDABOUT:
+                return R.drawable.ic_nav_roundabout;
+
+            case SuzukiPacketBuilder.TurnIcon.DESTINATION:
+                return R.drawable.ic_nav_destination;
+
+            default:
+                return 0; 
         }
     }
 

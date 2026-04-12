@@ -122,7 +122,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="ODOMETER"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 android:letterSpacing="0.1"
                                 android:fontFamily="sans-serif-black" />
 
@@ -138,7 +138,7 @@
                                     android:layout_height="wrap_content"
                                     android:text="---"
                                     android:textColor="@color/text_primary"
-                                    android:textSize="40sp"
+                                    android:textSize="48sp"
                                     android:fontFamily="sans-serif-black"
                                     android:transitionName="odoValueTransition" />
 
@@ -147,9 +147,9 @@
                                     android:layout_height="wrap_content"
                                     android:text="km"
                                     android:textColor="@color/text_secondary"
-                                    android:textSize="14sp"
+                                    android:textSize="16sp"
                                     android:layout_marginStart="4dp"
-                                    android:layout_marginBottom="6dp" />
+                                    android:layout_marginBottom="8dp" />
                             </LinearLayout>
                         </LinearLayout>
 
@@ -164,7 +164,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="FUEL LEVEL"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 android:letterSpacing="0.1"
                                 android:fontFamily="sans-serif-black" />
 
@@ -180,13 +180,13 @@
                                     android:layout_height="wrap_content"
                                     android:text="--%"
                                     android:textColor="@color/text_primary"
-                                    android:textSize="30sp"
+                                    android:textSize="40sp"
                                     android:fontFamily="sans-serif-black"
                                     android:transitionName="fuelValueTransition" />
 
                                 <ImageView
-                                    android:layout_width="20dp"
-                                    android:layout_height="20dp"
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
                                     android:src="@drawable/ic_fuel"
                                     android:layout_marginStart="8dp"
                                     android:tint="@color/text_primary" />
@@ -196,11 +196,11 @@
 
                     <!-- Gear and Trips Row (New Info) -->
                     <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0.5dp"
-                        android:background="@color/glass_border"
-                        android:layout_marginTop="20dp"
-                        android:layout_marginBottom="20dp" />
+                                    android:layout_width="match_parent"
+                                    android:layout_height="0.5dp"
+                                    android:background="@color/glass_border"
+                                    android:layout_marginTop="24dp"
+                                    android:layout_marginBottom="24dp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -217,7 +217,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="GEAR"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
+                                android:textSize="12sp" />
                             <TextView
                                 android:id="@+id/tvGearValue"
                                 android:layout_width="wrap_content"
@@ -239,14 +239,14 @@
                                 android:layout_height="wrap_content"
                                 android:text="TRIP A"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
+                                android:textSize="12sp" />
                             <TextView
                                 android:id="@+id/tvTripAValue"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="-- km"
                                 android:textColor="@color/text_primary"
-                                android:textSize="16sp" />
+                                android:textSize="18sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -259,14 +259,14 @@
                                 android:layout_height="wrap_content"
                                 android:text="TRIP B"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
+                                android:textSize="12sp" />
                             <TextView
                                 android:id="@+id/tvTripBValue"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="-- km"
                                 android:textColor="@color/text_primary"
-                                android:textSize="16sp" />
+                                android:textSize="18sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -279,14 +279,14 @@
                                 android:layout_height="wrap_content"
                                 android:text="SPEED"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
+                                android:textSize="12sp" />
                             <TextView
                                 android:id="@+id/tvSpeedValue"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="-- km/h"
                                 android:textColor="@color/accent_blue_light"
-                                android:textSize="16sp"
+                                android:textSize="18sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
 
@@ -311,34 +311,34 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:orientation="vertical">
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="MILEAGE"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="10sp"
-                                android:letterSpacing="0.1"
-                                android:fontFamily="sans-serif-black" />
+                             <TextView
+                                 android:layout_width="wrap_content"
+                                 android:layout_height="wrap_content"
+                                 android:text="MILEAGE"
+                                 android:textColor="@color/text_secondary"
+                                 android:textSize="12sp"
+                                 android:letterSpacing="0.1"
+                                 android:fontFamily="sans-serif-black" />
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:orientation="horizontal"
                                 android:gravity="bottom">
-                                <TextView
-                                    android:id="@+id/tvMileageValue"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="--"
-                                    android:textColor="@color/accent_blue_light"
-                                    android:textSize="24sp"
-                                    android:fontFamily="sans-serif-black" />
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text=" km/L"
-                                    android:textColor="@color/text_secondary"
-                                    android:textSize="13sp"
-                                    android:layout_marginBottom="3dp" />
+                                 <TextView
+                                     android:id="@+id/tvMileageValue"
+                                     android:layout_width="wrap_content"
+                                     android:layout_height="wrap_content"
+                                     android:text="--"
+                                     android:textColor="@color/accent_blue_light"
+                                     android:textSize="28sp"
+                                     android:fontFamily="sans-serif-black" />
+                                 <TextView
+                                     android:layout_width="wrap_content"
+                                     android:layout_height="wrap_content"
+                                     android:text=" km/L"
+                                     android:textColor="@color/text_secondary"
+                                     android:textSize="14sp"
+                                     android:layout_marginBottom="3dp" />
                             </LinearLayout>
                         </LinearLayout>
                     </LinearLayout>

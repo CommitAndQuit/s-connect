@@ -77,6 +77,7 @@ public class NavigationService extends Service implements NavigationSession.Navi
     private static final long CLUSTER_INTERVAL_MS = 200;
     private boolean isNavigationStarted = false;
     private int lastDistance = -1;
+    private int lastTotalDistance = -1;
     private int lastTurnIcon = -1;
     private String lastEtaStr = "1200PM";
     private String lastInstruction = "Drive safe";
@@ -273,11 +274,14 @@ public class NavigationService extends Service implements NavigationSession.Navi
     }
 
     @Override
-    public void onNavigationUpdate(int distanceMeters, int turnIconId, String instruction, String etaStr) {
+    public void onNavigationUpdate(int distanceMeters, int totalDistanceRemaining, int turnIconId, String instruction, String etaStr) {
         lastDistance = distanceMeters;
+        lastTotalDistance = totalDistanceRemaining;
         lastTurnIcon = turnIconId;
         lastInstruction = instruction;
         lastEtaStr = etaStr;
+
+        NavigationStateHolder.getInstance().setNavigationUpdate(distanceMeters, turnIconId, instruction);
 
         Intent intent = new Intent(ACTION_NAV_UPDATE);
         intent.putExtra(EXTRA_DISTANCE, distanceMeters);
@@ -317,6 +321,7 @@ public class NavigationService extends Service implements NavigationSession.Navi
 
             byte[] packet = SuzukiPacketBuilder.buildNavigationPacket(
                     lastDistance != -1 ? lastDistance : 0,
+                    lastTotalDistance != -1 ? lastTotalDistance : 0,
                     lastTurnIcon != -1 ? lastTurnIcon : 46,
                     lastEtaStr, statusCode, usesImg);
 

@@ -24,7 +24,7 @@ public class NavigationSession {
     private boolean isNavigating = false;
 
     public interface NavigationUpdateListener {
-        void onNavigationUpdate(int distanceMeters, int turnIconId, String instruction, String etaStr);
+        void onNavigationUpdate(int distanceMeters, int totalDistanceRemaining, int turnIconId, String instruction, String etaStr);
 
         void onDestinationReached();
     }
@@ -112,6 +112,14 @@ public class NavigationSession {
             Log.d(TAG, "Initial state (no location): dist=" + distanceToStepEnd);
         }
 
+        double totalDistanceRemaining = distanceToStepEnd;
+        for (int i = currentStepIndex + 1; i < steps.size(); i++) {
+            Double d = steps.get(i).distance();
+            if (d != null) {
+                totalDistanceRemaining += d;
+            }
+        }
+
         int iconId = mapManeuverToIcon(currentStep);
         String instruction = currentStep.maneuver().instruction();
 
@@ -124,7 +132,7 @@ public class NavigationSession {
         String etaStr = calculateETA();
 
         if (listener != null) {
-            listener.onNavigationUpdate((int) distanceToStepEnd, iconId, instruction, etaStr);
+            listener.onNavigationUpdate((int) distanceToStepEnd, (int) totalDistanceRemaining, iconId, instruction, etaStr);
         }
     }
 

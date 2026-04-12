@@ -7,6 +7,10 @@ public class NavigationStateHolder {
     private DirectionsRoute currentRoute;
     private String destinationName;
     private String originName;
+    
+    private int lastDistance = -1;
+    private int lastTurnIcon = 46;
+    private String lastInstruction = "";
 
     private NavigationStateHolder() {
     }
@@ -39,9 +43,22 @@ public class NavigationStateHolder {
         return destinationName;
     }
 
+    public void setNavigationUpdate(int distance, int turnIcon, String instruction) {
+        this.lastDistance = distance;
+        this.lastTurnIcon = turnIcon;
+        this.lastInstruction = instruction;
+    }
+
+    public int getLastDistance() { return lastDistance; }
+    public int getLastTurnIcon() { return lastTurnIcon; }
+    public String getLastInstruction() { return lastInstruction; }
+
     public void clear() {
         currentRoute = null;
         originName = null;
         destinationName = null;
+        lastDistance = -1;
+        lastTurnIcon = 46;
+        lastInstruction = "";
     }
 }

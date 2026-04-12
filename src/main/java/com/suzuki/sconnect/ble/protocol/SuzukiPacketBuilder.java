@@ -650,9 +650,9 @@ public class SuzukiPacketBuilder {
      *                             lost, "5"=arrived)
      * @param usesInvertedChecksum Checksum type
      */
-    public static byte[] buildNavigationPacket(int distanceMeters, int turnIconId, String etaStr, String statusCode,
+    public static byte[] buildNavigationPacket(int distanceMeters, int totalDistanceRemaining, int turnIconId, String etaStr, String statusCode,
             boolean usesInvertedChecksum) {
-        DebugLogger.d("PacketBuilder", "Building ?1 packet: Dist=" + distanceMeters + "m, Icon=" + turnIconId + ", ETA="
+        DebugLogger.d("PacketBuilder", "Building ?1 packet: Dist=" + distanceMeters + "m, TotalDist=" + totalDistanceRemaining + "m, Icon=" + turnIconId + ", ETA="
                 + etaStr + ", Status=" + statusCode);
 
         byte[] packet = new byte[PACKET_SIZE];
@@ -681,6 +681,24 @@ public class SuzukiPacketBuilder {
                 unit = "K";
             }
 
+            // Prepare total distance component
+            String totalDistStr;
+            String totalUnit;
+
+            if (totalDistanceRemaining < 1000) {
+                totalDistStr = String.format("%04d", totalDistanceRemaining);
+                totalUnit = "M";
+            } else {
+                double totalKm = totalDistanceRemaining / 1000.0;
+                if (totalKm < 10) {
+                    totalDistStr = String.format("%04.1f", totalKm).replace(".", "");
+                    totalDistStr = String.format("%04d", Math.round(totalKm)); // fallback to same logic
+                } else {
+                    totalDistStr = String.format("%04d", Math.round(totalKm));
+                }
+                totalUnit = "K";
+            }
+
             // ETA must be 6 chars. Pad if necessary.
             if (etaStr == null || etaStr.length() != 6) {
                 etaStr = "1200PM";
@@ -691,8 +709,8 @@ public class SuzukiPacketBuilder {
 
             // 2. Build base string (30 chars)
             // Indices: 0123 4567 8 901234 567 8901 2 3 4 567 8 9
-            // Content: ?110 dist U ETA--- 000 dist U S S 000 C F
-            String payload = "?110" + distStr + unit + etaStr + "000" + distStr + unit + status1 + status2 + "00000";
+            // Content: ?110 dist U ETA--- 000 tdst U S S 000 C F
+            String payload = "?110" + distStr + unit + etaStr + "000" + totalDistStr + totalUnit + status1 + status2 + "00000";
             byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
 
             // 3. Copy to packet array
