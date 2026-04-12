@@ -76,41 +76,85 @@ public class SuzukiPacketBuilder {
 
     /**
      * Construct Heartbeat/Status Packet (?3)
-     * Sent every 1 second to maintain connection
-     * 
-     * @param batteryStatus        Battery status encoded as [0-3][Y/N]
+     * Sent every 1 second to maintain connection.
+     *
+     * Byte layout (from decompiled C0704v.java / ViewOnClickListenerC0708z):
+     *   [0]    = 0xA5 (Header)
+     *   [1]    = '3'
+     *   [2-3]  = batteryStatus (e.g. "3N" = 75-100% not charging)
+     *   [4-6]  = speed 3-digit ASCII (e.g. "060"). Set to 0xFF×3 if speed == 0.
+     *   [7]    = signal 1-digit ASCII ("0"–"3"). Set to 0x00 if "0" (no signal).
+     *   [8-13] = time in HHmmss ASCII. Set to 0xFF×6 if time == "000000".
+     *   [14]   = call notification flag (HomeScreenActivity.e0)
+     *   [15]   = SMS  notification flag (HomeScreenActivity.f0)
+     *   [16-27]= 0xFF padding
+     *   [28]   = checksum
+     *   [29]   = 0x7F (Footer)
+     *
+     * @param batteryStatus        Battery status "[0-3][Y/N]"
+     * @param speed                3-digit ASCII speed string, e.g. "060"
+     * @param signal               1-digit signal level "0"–"3"
      * @param time                 Current time in HHmmss format
      * @param usesInvertedChecksum Checksum type
      */
-    public static byte[] buildHeartbeatPacket(String batteryStatus, String time, boolean usesInvertedChecksum) {
+    public static byte[] buildHeartbeatPacket(String batteryStatus, String speed, String signal,
+            String time, boolean usesInvertedChecksum) {
         DebugLogger.d("PacketBuilder", "Building ?3 heartbeat packet");
         DebugLogger.d("PacketBuilder", "  Battery: " + batteryStatus);
-        DebugLogger.d("PacketBuilder", "  Time: " + time);
+        DebugLogger.d("PacketBuilder", "  Speed:   " + speed);
+        DebugLogger.d("PacketBuilder", "  Signal:  " + signal);
+        DebugLogger.d("PacketBuilder", "  Time:    " + time);
         DebugLogger.d("PacketBuilder", "  Checksum: " + (usesInvertedChecksum ? "INVERTED" : "DIRECT"));
+
+        // Validate / sanitize inputs
+        if (batteryStatus == null || batteryStatus.length() < 2) batteryStatus = "1N";
+        if (speed == null || speed.length() != 3) speed = "000";
+        if (signal == null || signal.isEmpty()) signal = "1";
+        if (time == null || time.length() != 6) time = "000000";
 
         byte[] packet = new byte[PACKET_SIZE];
 
         try {
-            // Format: ?3 + batteryStatus(2) + speed(3) + signal(1) + time(6) + padding
-            // For testing, use fixed values: speed=000, signal=4
-            String payload = "?3" + batteryStatus + "0004" + time + "0000000000000000";
+            // Build the 30-byte string skeleton:
+            // "?3" + battery(2) + speed(3) + signal(1) + time(6) + 16 zeros = 30 chars
+            String payload = "?3" + batteryStatus + speed + signal + time + "0000000000000000";
             byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
-
             System.arraycopy(payloadBytes, 0, packet, 0, Math.min(payloadBytes.length, PACKET_SIZE));
 
-            // Set header
+            // [0] Header
             packet[0] = HEADER;
 
-            // Set padding to 0xFF
-            for (int i = 14; i <= 27; i++) {
-                packet[i] = (byte) 0xFF;
+            // [4-6] Speed bytes: set to 0xFF when speed is 0 (matches decompiled logic)
+            int speedVal = 0;
+            try { speedVal = Integer.parseInt(speed); } catch (NumberFormatException ignored) {}
+            if (speedVal == 0) {
+                packet[4] = (byte) 0xFF;
+                packet[5] = (byte) 0xFF;
+                packet[6] = (byte) 0xFF;
             }
 
-            // Notification flags (N = No notification)
+            // [7] Signal byte: set to 0x00 when no signal (matches decompiled: if H=="0" iArr[7]=0)
+            if ("0".equals(signal)) {
+                packet[7] = (byte) 0x00;
+            }
+
+            // [8-13] Time bytes: 0xFF when time is unset
+            if ("000000".equals(time)) {
+                for (int i = 8; i <= 13; i++) {
+                    packet[i] = (byte) 0xFF;
+                }
+            }
+
+            // [14-15] Notification flags (N = No notification pending)
             packet[14] = (byte) 'N';
             packet[15] = (byte) 'N';
 
-            // Calculate checksum and set footer
+            // [16-27] Padding
+            for (int i = 16; i <= 27; i++) {
+                packet[i] = (byte) 0xFF;
+            }
+
+            // [28-29] Checksum + Footer
             packet[28] = calculateChecksum(packet, usesInvertedChecksum);
             packet[29] = FOOTER;
 

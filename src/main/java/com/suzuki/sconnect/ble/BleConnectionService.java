@@ -23,6 +23,10 @@ import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
 
+import android.telephony.PhoneStateListener;
+import android.telephony.SignalStrength;
+import android.telephony.TelephonyManager;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -49,6 +53,13 @@ public class BleConnectionService extends Service {
     private boolean usesInvertedChecksum; // true for 'A' prefix (Access/Burgman), false for 'B' prefix (SBM/Avenis)
     private boolean isIdentificationSent = false;
     private int heartbeatCount = 0;
+
+    // Real telemetry state for heartbeat packet
+    private int lastSpeedKmh = 0;   // Updated from ?7 cluster packet
+    private String lastSignalLevel = "1"; // "0"–"3", updated by PhoneStateListener
+
+    private TelephonyManager telephonyManager;
+    private PhoneStateListener signalListener;
 
     private final android.content.BroadcastReceiver packetReceiver = new android.content.BroadcastReceiver() {
         @Override
@@ -177,6 +188,10 @@ public class BleConnectionService extends Service {
                                 "onVehicleDataReceived: Speed=%d, ODO=%d, TripA=%.1f, TripB=%.1f, Gear=%c, Fuel=%d",
                                 data.speed, data.odometer, data.tripA, data.tripB, data.gear, data.fuelLevel));
 
+                // Cache speed for use in the next heartbeat packet
+                lastSpeedKmh = data.speed;
+                DebugLogger.d("Service", "Heartbeat speed updated: " + lastSpeedKmh + " km/h");
+
                 // Broadcast data to UI
                 Intent intent = new Intent(ACTION_VEHICLE_DATA);
                 intent.setPackage(getPackageName()); // Explicit package for internal broadcast
@@ -236,6 +251,7 @@ public class BleConnectionService extends Service {
 
         // Start heartbeat immediately after identification
         isIdentificationSent = true;
+        startSignalStrengthListener();
         startHeartbeat();
     }
 
@@ -259,6 +275,52 @@ public class BleConnectionService extends Service {
         }
     }
 
+    /**
+     * Registers a PhoneStateListener to track cellular signal strength.
+     * Maps Android signal level (0–4) → cluster value ("0"–"3") matching
+     * the decompiled C0707y.onSignalStrengthsChanged() logic.
+     */
+    @SuppressWarnings("deprecation") // PhoneStateListener is deprecated in API 31 but still works
+    private void startSignalStrengthListener() {
+        try {
+            telephonyManager = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+            signalListener = new PhoneStateListener() {
+                @Override
+                public void onSignalStrengthsChanged(SignalStrength signalStrength) {
+                    super.onSignalStrengthsChanged(signalStrength);
+                    // Map Android levels 0–4 to cluster values 0–3
+                    // (mirrors C0707y: level>=4 → "3", level==3 → "2", level==2 → "1", level<=1 → "0")
+                    int level = signalStrength.getLevel();
+                    if (level >= 4) {
+                        lastSignalLevel = "3";
+                    } else if (level == 3) {
+                        lastSignalLevel = "2";
+                    } else if (level == 2) {
+                        lastSignalLevel = "1";
+                    } else {
+                        lastSignalLevel = "0";
+                    }
+                    DebugLogger.d("Signal", "Signal level updated: Android=" + level + " → cluster=" + lastSignalLevel);
+                }
+            };
+            telephonyManager.listen(signalListener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
+            DebugLogger.i("Service", "Signal strength listener registered");
+        } catch (Exception e) {
+            DebugLogger.e("Service", "Failed to register signal listener", e);
+        }
+    }
+
+    private void stopSignalStrengthListener() {
+        try {
+            if (telephonyManager != null && signalListener != null) {
+                telephonyManager.listen(signalListener, PhoneStateListener.LISTEN_NONE);
+                DebugLogger.i("Service", "Signal strength listener unregistered");
+            }
+        } catch (Exception e) {
+            DebugLogger.e("Service", "Failed to unregister signal listener", e);
+        }
+    }
+
     private void sendHeartbeat() {
         heartbeatCount++;
 
@@ -266,13 +328,19 @@ public class BleConnectionService extends Service {
         SimpleDateFormat timeFormat = new SimpleDateFormat("HHmmss", Locale.US);
         String time = timeFormat.format(new Date());
 
-        // Get battery status
+        // Get battery status (real)
         String batteryStatus = getBatteryStatus();
 
-        DebugLogger.d("Service", String.format("Sending heartbeat #%d (time: %s, battery: %s)",
-                heartbeatCount, time, batteryStatus));
+        // Format speed as 3-digit string, clamped to 0–999
+        int clampedSpeed = Math.max(0, Math.min(999, lastSpeedKmh));
+        String speedStr = String.format(Locale.US, "%03d", clampedSpeed);
 
-        byte[] packet = SuzukiPacketBuilder.buildHeartbeatPacket(batteryStatus, time, usesInvertedChecksum);
+        DebugLogger.d("Service", String.format(
+                "Sending heartbeat #%d | time=%s battery=%s speed=%s signal=%s",
+                heartbeatCount, time, batteryStatus, speedStr, lastSignalLevel));
+
+        byte[] packet = SuzukiPacketBuilder.buildHeartbeatPacket(
+                batteryStatus, speedStr, lastSignalLevel, time, usesInvertedChecksum);
         gattCallback.writePacket(bluetoothGatt, packet);
     }
 
@@ -387,6 +455,7 @@ public class BleConnectionService extends Service {
             // Receiver not registered
         }
 
+        stopSignalStrengthListener();
         stopHeartbeat();
         if (bluetoothGatt != null) {
             try {
