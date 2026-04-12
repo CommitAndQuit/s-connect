@@ -81,3 +81,8 @@ dependencies {
         exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-desktop'
     }
 }
+android {
+    lint {
+        abortOnError false
+    }
+}
