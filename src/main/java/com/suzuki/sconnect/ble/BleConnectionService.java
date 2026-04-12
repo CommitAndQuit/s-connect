@@ -5,6 +5,9 @@ import com.suzuki.sconnect.ui.activities.MainActivity;
 import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
 import com.suzuki.sconnect.ble.protocol.SuzukiPacketParser;
 import com.suzuki.sconnect.utils.DebugLogger;
+import com.suzuki.sconnect.data.model.DailyFuelRecord;
+
+import io.realm.Realm;
 
 import android.Manifest;
 import android.app.Notification;
@@ -68,6 +71,11 @@ public class BleConnectionService extends Service {
     private int startOdometer = -1;           // ODO at connection time (in km)
     private double cumulativeFuelConsumed = 0.0; // accumulated fuel since connection (litres)
     private double lastMileageKmL = 0.0;      // last computed mileage
+
+    // ── P5: Incremental Daily Persistence ───────────────────────────────────────────────
+    private double lastPersistedDistance = 0.0;
+    private double lastPersistedFuel = 0.0;
+    // ─────────────────────────────────────────────────────────────────────────────────────
     // ─────────────────────────────────────────────────────────────────────────────────────
 
     private TelephonyManager telephonyManager;
@@ -236,6 +244,17 @@ public class BleConnectionService extends Service {
                 }
                 DebugLogger.d("Service", String.format("P3: FC=%.4fL cumulative=%.4fL dist=%.1fkm mileage=%.1f km/L",
                         data.fuelConsumption, cumulativeFuelConsumed, distanceTravelled, lastMileageKmL));
+
+                // ── P5: Daily Fuel Aggregate Persistence ─────────────────────────────────
+                double distDelta = distanceTravelled - lastPersistedDistance;
+                double fuelDelta = cumulativeFuelConsumed - lastPersistedFuel;
+
+                // Persist if there's any significant change (to avoid excessive Realm writes)
+                if (distDelta > 0 || fuelDelta > 0.0001) {
+                    updateDailyFuelRecord((float) distDelta, (float) fuelDelta);
+                    lastPersistedDistance = distanceTravelled;
+                    lastPersistedFuel = cumulativeFuelConsumed;
+                }
                 // ─────────────────────────────────────────────────────────────────────────
 
                 // Broadcast data to UI
@@ -492,6 +511,31 @@ public class BleConnectionService extends Service {
             }
         } catch (Exception e) {
             DebugLogger.e("Service", "P1: Error saving parked location", e);
+        }
+    }
+
+    /**
+     * P5: Updates the DailyFuelRecord in Realm for the current date.
+     */
+    private void updateDailyFuelRecord(float distanceDelta, float fuelDelta) {
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+
+        try (Realm realm = Realm.getDefaultInstance()) {
+            realm.executeTransaction(r -> {
+                DailyFuelRecord record = r.where(DailyFuelRecord.class)
+                        .equalTo("date", today)
+                        .findFirst();
+
+                if (record == null) {
+                    record = r.createObject(DailyFuelRecord.class, today);
+                }
+
+                record.addProgress(distanceDelta, fuelDelta);
+                DebugLogger.d("Service", String.format("P5: Updated DailyFuelRecord for %s (+%.3fkm, +%.4fL)",
+                        today, distanceDelta, fuelDelta));
+            });
+        } catch (Exception e) {
+            DebugLogger.e("Service", "P5: Failed to update DailyFuelRecord", e);
         }
     }
 

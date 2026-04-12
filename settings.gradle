@@ -1,1 +1,11 @@
 rootProject.name = "SConnect"
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://maven.mappls.com/repository/mappls/' }
+        maven { url 'https://jitpack.io' }
+    }
+}

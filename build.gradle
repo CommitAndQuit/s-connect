@@ -11,15 +11,7 @@ buildscript {
 }
 
 apply plugin: 'com.android.application'
-apply plugin: 'realm-android'  // Realm Java SDK transform plugin
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://maven.mappls.com/repository/mappls/' }
-    }
-}
+apply plugin: 'realm-android'
 
 android {
     namespace 'com.suzuki.sconnect'
@@ -72,4 +64,7 @@ dependencies {
     implementation('com.mappls.sdk:direction-ui:2.0.0') {
         exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-desktop'
     }
+
+    // MPAndroidChart for Fuel Economy Charts (P5)
+    implementation 'com.github.PhilJay:MPAndroidChart:3.1.0'
 }

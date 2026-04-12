@@ -69,9 +69,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ImageButton btnPower, btnSettings;
     private TextView tvDeviceName, tvOdoValue, tvFuelValue, tvGearValue, tvTripAValue, tvTripBValue, tvSpeedValue;
     private TextView tvMileageValue;        // P3: live mileage
-    private TextView tvLastParkedTime;      // P1: timestamp on dashboard card
-    private TextView tvTripCount;           // P2: trip count on dashboard card
-    private MaterialCardView cardLastParked, cardTripHistory;
+    private MaterialCardView cardLastParked, cardTripHistory, cardFuelEconomy;
     private ImageView ivBluetoothStatus;
     private View mapCard;
     private MapView mapView;
@@ -138,9 +136,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         tvTripBValue = findViewById(R.id.tvTripBValue);
         tvSpeedValue = findViewById(R.id.tvSpeedValue);
         tvMileageValue = findViewById(R.id.tvMileageValue);      // P3
-        tvLastParkedTime = findViewById(R.id.tvLastParkedTime);    // P1
-        tvTripCount = findViewById(R.id.tvTripCount);              // P2
         cardLastParked = findViewById(R.id.cardLastParked);        // P1
+        cardFuelEconomy = findViewById(R.id.cardFuelEconomy);      // P5
         cardTripHistory = findViewById(R.id.cardTripHistory);       // P2
         ivBluetoothStatus = findViewById(R.id.ivBluetoothStatus);
         mapCard = findViewById(R.id.mapCard);
@@ -174,6 +171,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // P2: Trip History card
         cardTripHistory.setOnClickListener(v ->
                 startActivity(new Intent(this, TripHistoryActivity.class)));
+
+        // P5: Fuel Economy card
+        cardFuelEconomy.setOnClickListener(v ->
+                startActivity(new Intent(this, FuelEconomyActivity.class)));
 
         // Setup scroll listener to open full-screen on scroll up
         setupScrollAnimation();
@@ -362,38 +363,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * P1: Refresh last parked time on the dashboard card from SharedPrefs.
-     * P2: Refresh trip count from Realm DB.
-     * Called onResume so the card always shows current data.
+     * P1: Refresh last parked time (Optional: currently no subtitle)
+     * P2: Refresh trip count (Optional: currently no subtitle)
      */
     private void refreshDashboardCards() {
-        // P1: Last Parked time
-        SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
-        long parkedTime = prefs.getLong("last_parked_time", 0L);
-        if (tvLastParkedTime != null) {
-            if (parkedTime > 0) {
-                CharSequence timeAgo = DateUtils.getRelativeTimeSpanString(
-                        parkedTime, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS);
-                tvLastParkedTime.setText(timeAgo);
-            } else {
-                tvLastParkedTime.setText("Not saved");
-            }
-        }
-
-        // P2: Trip count
-        if (tvTripCount != null) {
-            try {
-                Realm realm = Realm.getDefaultInstance();
-                long count = realm.where(com.suzuki.sconnect.data.model.TripRecord.class)
-                        .equalTo("status", "COMPLETED").count();
-                realm.close();
-                tvTripCount.setText(count > 0
-                        ? count + " trip" + (count == 1 ? "" : "s")
-                        : "No trips");
-            } catch (Exception e) {
-                tvTripCount.setText("No trips");
-            }
-        }
+        // Subtitles were removed to fit 3 cards in a row.
+        // This method is kept for future logic if needed.
     }
     private void checkPermissions() {
         List<String> permissions = new ArrayList<>();
