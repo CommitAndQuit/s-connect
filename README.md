@@ -1,9 +1,17 @@
-# SConnect 
+<p align="center">
+  <img src="src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="128" alt="SConnect Logo">
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Android Support](https://img.shields.io/badge/Android-8.0%2B-green.svg)](https://developer.android.com/)
+# <p align="center">SConnect</p>
 
-**SConnect** is the ultimate open-source companion for your Suzuki motorcycle. It bridges the gap between your smartphone and your bike's instrument cluster, bringing modern navigation and live vehicle telemetry to your dashboard.
+<p align="center">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://developer.android.com/"><img src="https://img.shields.io/badge/Android-8.0%2B-green.svg" alt="Android Support"></a>
+</p>
+
+<p align="center">
+  <b>SConnect</b> is the ultimate open-source companion for your Suzuki motorcycle. It bridges the gap between your smartphone and your bike's instrument cluster, bringing modern navigation and live vehicle telemetry to your dashboard.
+</p>
 
 Forget the limitations of proprietary apps—SConnect is built by riders, for riders.
 
@@ -76,6 +84,13 @@ Whether you're a developer or a rider with a Suzuki bike, we need you!
 Distributed under the MIT License. 
 
 **Disclaimer**: SConnect is an independent project and is not affiliated with Suzuki Motor Corporation. Riding while distracted is dangerous—always keep your eyes on the road. Use this app at your own risk.
+
+---
+
+## 🎨 Credits & Assets
+
+- **Iconography**: Dashboard icons are provided by [Lucide](https://lucide.dev/).
+- **Maps**: Navigation engine and map data provided by [Mappls](https://www.mappls.com/).
 
 ---
 *Built for the ride. 🏍️*
