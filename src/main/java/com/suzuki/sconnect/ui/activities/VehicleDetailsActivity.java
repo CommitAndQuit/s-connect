@@ -19,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.card.MaterialCardView;
 import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.ble.BleConnectionService;
+import com.suzuki.sconnect.utils.VehicleStateHolder;
 
 public class VehicleDetailsActivity extends AppCompatActivity {
 
@@ -155,6 +156,21 @@ public class VehicleDetailsActivity extends AppCompatActivity {
             registerReceiver(vehicleDataReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(vehicleDataReceiver, filter);
+        }
+
+        // Load initial state if available
+        VehicleStateHolder state = VehicleStateHolder.getInstance();
+        state.loadState(this);
+        if (state.hasData()) {
+            updateVehicleData(
+                    state.getSpeed(),
+                    state.getOdometer(),
+                    state.getTripA(),
+                    state.getTripB(),
+                    state.getGear(),
+                    state.getFuelLevel(),
+                    state.getMileageKmL()
+            );
         }
     }
 

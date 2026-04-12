@@ -6,6 +6,7 @@ import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
 import com.suzuki.sconnect.ble.protocol.SuzukiPacketParser;
 import com.suzuki.sconnect.utils.DebugLogger;
 import com.suzuki.sconnect.data.model.DailyFuelRecord;
+import com.suzuki.sconnect.utils.VehicleStateHolder;
 
 import io.realm.Realm;
 
@@ -256,6 +257,18 @@ public class BleConnectionService extends Service {
                     lastPersistedFuel = cumulativeFuelConsumed;
                 }
                 // ─────────────────────────────────────────────────────────────────────────
+
+                // Update singleton state holder
+                VehicleStateHolder.getInstance().updateState(
+                        BleConnectionService.this,
+                        data.speed,
+                        data.odometer,
+                        data.tripA,
+                        data.tripB,
+                        data.gear,
+                        data.fuelLevel,
+                        (float) lastMileageKmL
+                );
 
                 // Broadcast data to UI
                 Intent intent = new Intent(ACTION_VEHICLE_DATA);

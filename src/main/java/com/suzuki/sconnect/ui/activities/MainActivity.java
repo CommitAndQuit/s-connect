@@ -4,6 +4,7 @@ import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.ble.BleConnectionService;
 import com.suzuki.sconnect.ble.SuzukiBleScanner;
 import com.suzuki.sconnect.ui.adapters.DeviceAdapter;
+import com.suzuki.sconnect.utils.VehicleStateHolder;
 
 import android.Manifest;
 import android.app.ActivityOptions;
@@ -356,16 +357,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         ivBluetoothStatus.setColorFilter(Color.parseColor("#EF4444"));
         btnPower.setColorFilter(null);
 
-        // Reset vehicle data including mileage
-        if (tvSpeedValue != null)
-            tvSpeedValue.setText("-- km/h");
-        tvOdoValue.setText("--");
-        tvFuelValue.setText("--");
-        tvGearValue.setText("-");
-        tvTripAValue.setText("-- km");
-        tvTripBValue.setText("-- km");
-        if (tvMileageValue != null) tvMileageValue.setText("--"); // P3
-
         Toast.makeText(this, "Disconnected from vehicle", Toast.LENGTH_SHORT).show();
     }
 
@@ -487,6 +478,21 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // Re-enable scroll listener when returning from full-screen map
         setupScrollAnimation();
+        
+        // Load initial state if available
+        VehicleStateHolder state = VehicleStateHolder.getInstance();
+        state.loadState(this);
+        if (state.hasData()) {
+            updateVehicleData(
+                    state.getSpeed(),
+                    state.getOdometer(),
+                    state.getTripA(),
+                    state.getTripB(),
+                    state.getGear(),
+                    state.getFuelLevel(),
+                    state.getMileageKmL()
+            );
+        }
 
         // P1 + P2: Refresh Last Parked time and Trip count every time we return here
         refreshDashboardCards();
