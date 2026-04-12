@@ -16,13 +16,15 @@ public class SuzukiPacketParser {
         public float tripB; // in km (with decimal)
         public char gear; // 'N', '1', '2', etc.
         public int fuelLevel; // 1-6 bars
+        /** Instantaneous fuel consumption in litres (standard scooter/bike formula from bytes 25-27). */
+        public float fuelConsumption; // litres per cluster update
         public boolean isValid;
 
         @Override
         public String toString() {
             return String.format(
-                    "Speed: %d km/h, ODO: %d km, Trip A: %.1f km, Trip B: %.1f km, Gear: %c, Fuel: %d bars",
-                    speed, odometer, tripA, tripB, gear, fuelLevel);
+                    "Speed: %d km/h, ODO: %d km, Trip A: %.1f km, Trip B: %.1f km, Gear: %c, Fuel: %d bars, FC: %.4f L",
+                    speed, odometer, tripA, tripB, gear, fuelLevel, fuelConsumption);
         }
     }
 
@@ -82,20 +84,25 @@ public class SuzukiPacketParser {
             data.tripB = Integer.parseInt(tripBStr.trim()) / 10.0f;
             DebugLogger.d("PacketParser", "  Trip B: '" + tripBStr + "' → " + data.tripB + " km");
 
-            // Extract Gear (byte 23): Could be binary (0-6) or ASCII ('N', '1'-'6')
+            // Extract Gear (byte 23): unsigned value, binary (0-6) or ASCII ('N'=78, '1'=49..'6'=54)
+            // BUG FIX: Use (gearByte & 0xFF) to treat as unsigned and avoid signed-byte range confusion.
+            // Binary range 0–6 is unambiguous from ASCII range 49–78 with unsigned comparison.
             byte gearByte = packet[23];
-            DebugLogger.d("PacketParser", String.format("  Raw Gear Byte: 0x%02X (%d)", gearByte, gearByte & 0xFF));
+            int gearUnsigned = gearByte & 0xFF;
+            DebugLogger.d("PacketParser", String.format("  Raw Gear Byte: 0x%02X (unsigned=%d)", gearByte, gearUnsigned));
 
-            if (gearByte >= 0 && gearByte <= 6) {
-                // Binary detected: 0=N, 1=Gear 1, ..., 6=Gear 6
-                data.gear = (gearByte == 0) ? 'N' : (char) ('0' + gearByte);
+            if (gearUnsigned <= 6) {
+                // Binary encoding: 0=Neutral, 1=1st, 2=2nd, ... 6=6th
+                // IMPORTANT: binary 0 must map to 'N' (not '\0') so the char round-trips correctly
+                // through Intent.putExtra("gear", (int)data.gear) → getIntExtra("gear", 'N').
+                data.gear = (gearUnsigned == 0) ? 'N' : (char) ('0' + gearUnsigned);
                 DebugLogger.d("PacketParser", "  → Decoded from BINARY: '" + data.gear + "'");
-            } else if (gearByte == 'N' || (gearByte >= '1' && gearByte <= '6')) {
-                // ASCII detected: 'N' (0x4E), '1' (0x31), etc.
-                data.gear = (char) gearByte;
+            } else if (gearUnsigned == 'N' || (gearUnsigned >= '1' && gearUnsigned <= '6')) {
+                // ASCII encoding: 'N'=0x4E=78, '1'=0x31=49 ... '6'=0x36=54
+                data.gear = (char) gearUnsigned;
                 DebugLogger.d("PacketParser", "  → Decoded from ASCII: '" + data.gear + "'");
             } else {
-                // Fallback for unknown values
+                // Fallback for unexpected values
                 data.gear = '-';
                 DebugLogger.w("PacketParser", String.format("  → Unknown gear value: 0x%02X", gearByte));
             }
@@ -103,6 +110,33 @@ public class SuzukiPacketParser {
             // Extract Fuel Level (byte 24): ASCII '1' to '6'
             data.fuelLevel = packet[24] - '0';
             DebugLogger.d("PacketParser", "  Fuel: " + data.fuelLevel + " bars");
+
+            // ── P3: Fuel Consumption (bytes 25-27) ──────────────────────────────────────────
+            // Official app concatenates 8-bit binary strings of bytes 25, 26, 27 → 24-bit field.
+            // Standard scooter/motorcycle formula (from HomeScreenActivity.onClusterDataRecev):
+            //   bits[0..12]  = integer part × 10  (13 bits)
+            //   bits[13..23] = fractional part / 2048  (11 bits)
+            //   result = (intPart + fracPart / 2048.0) / 10.0  [litres per update]
+            //
+            // Note: e-ACCESS (EV) and Access-TFT Edition use different formulas. Since SConnect
+            // has no vehicle-profile feature yet, the standard formula is used for all models.
+            // This will be corrected when vehicle profiles (P8) are implemented.
+            int b25 = packet[25] & 0xFF;
+            int b26 = packet[26] & 0xFF;
+            int b27 = packet[27] & 0xFF;
+
+            // Combine into a 24-bit unsigned integer (MSB = byte25)
+            int raw24 = (b25 << 16) | (b26 << 8) | b27;
+
+            // Extract 13-bit integer part (bits 23..11) and 11-bit fractional part (bits 10..0)
+            int intPart  = (raw24 >> 11) & 0x1FFF;  // top 13 bits
+            int fracPart = raw24 & 0x7FF;             // bottom 11 bits
+
+            data.fuelConsumption = (intPart + fracPart / 2048.0f) / 10.0f;
+            DebugLogger.d("PacketParser", String.format(
+                    "  Fuel Consumption: raw24=0x%06X, intPart=%d, fracPart=%d → %.4f L",
+                    raw24, intPart, fracPart, data.fuelConsumption));
+            // ────────────────────────────────────────────────────────────────────────────────
 
             // Log checksum
             DebugLogger.d("PacketParser", String.format("  Checksum: 0x%02X", packet[28]));
@@ -117,6 +151,7 @@ public class SuzukiPacketParser {
 
         return data;
     }
+
 
     /**
      * Validate checksum of received packet

@@ -33,7 +33,11 @@ import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.SharedPreferences;
+import android.text.format.DateUtils;
+
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.card.MaterialCardView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +57,8 @@ import com.mappls.sdk.services.account.MapplsAccountManager;
 import com.mappls.sdk.maps.Mappls;
 import com.mappls.sdk.maps.location.permissions.PermissionsManager;
 
+import io.realm.Realm;
+
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final int REQUEST_PERMISSIONS = 100;
 
@@ -62,11 +68,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     // UI Elements
     private ImageButton btnPower, btnSettings;
     private TextView tvDeviceName, tvOdoValue, tvFuelValue, tvGearValue, tvTripAValue, tvTripBValue, tvSpeedValue;
+    private TextView tvMileageValue;        // P3: live mileage
+    private TextView tvLastParkedTime;      // P1: timestamp on dashboard card
+    private TextView tvTripCount;           // P2: trip count on dashboard card
+    private MaterialCardView cardLastParked, cardTripHistory;
     private ImageView ivBluetoothStatus;
     private View mapCard;
     private MapView mapView;
     private MapplsMap mapplsMap;
     private NestedScrollView nestedScrollView;
+
 
     // Device Selection Sheet
     private BottomSheetDialog bottomSheetDialog;
@@ -90,8 +101,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 float tripB = intent.getFloatExtra("tripB", 0);
                 char gear = (char) intent.getIntExtra("gear", 'N');
                 int fuel = intent.getIntExtra("fuelLevel", 0);
+                float mileageKmL = intent.getFloatExtra("mileageKmL", 0f); // P3
 
-                updateVehicleData(speed, odo, tripA, tripB, gear, fuel);
+                updateVehicleData(speed, odo, tripA, tripB, gear, fuel, mileageKmL);
             }
         }
     };
@@ -125,6 +137,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         tvTripAValue = findViewById(R.id.tvTripAValue);
         tvTripBValue = findViewById(R.id.tvTripBValue);
         tvSpeedValue = findViewById(R.id.tvSpeedValue);
+        tvMileageValue = findViewById(R.id.tvMileageValue);      // P3
+        tvLastParkedTime = findViewById(R.id.tvLastParkedTime);    // P1
+        tvTripCount = findViewById(R.id.tvTripCount);              // P2
+        cardLastParked = findViewById(R.id.cardLastParked);        // P1
+        cardTripHistory = findViewById(R.id.cardTripHistory);       // P2
         ivBluetoothStatus = findViewById(R.id.ivBluetoothStatus);
         mapCard = findViewById(R.id.mapCard);
         mapView = findViewById(R.id.map_view);
@@ -149,6 +166,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // Open full-screen map when map preview is clicked
         mapCard.setOnClickListener(v -> openFullScreenMap());
+
+        // P1: Last Parked Location card
+        cardLastParked.setOnClickListener(v ->
+                startActivity(new Intent(this, LastParkedLocationActivity.class)));
+
+        // P2: Trip History card
+        cardTripHistory.setOnClickListener(v ->
+                startActivity(new Intent(this, TripHistoryActivity.class)));
 
         // Setup scroll listener to open full-screen on scroll up
         setupScrollAnimation();
@@ -288,7 +313,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-    private void updateVehicleData(int speed, int odo, float tripA, float tripB, char gear, int fuel) {
+    private void updateVehicleData(int speed, int odo, float tripA, float tripB, char gear, int fuel, float mileageKmL) {
         runOnUiThread(() -> {
             if (tvSpeedValue != null)
                 tvSpeedValue.setText(String.format("%d km/h", speed));
@@ -301,6 +326,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             tvGearValue.setText(String.valueOf(gear));
             tvTripAValue.setText(String.format("%.1f km", tripA));
             tvTripBValue.setText(String.format("%.1f km", tripB));
+
+            // P3: Update mileage display
+            if (tvMileageValue != null) {
+                tvMileageValue.setText(mileageKmL > 0
+                        ? String.format("%.1f", mileageKmL)
+                        : "--");
+            }
         });
     }
 
@@ -316,7 +348,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         ivBluetoothStatus.setColorFilter(Color.parseColor("#EF4444"));
         btnPower.setColorFilter(null);
 
-        // Reset vehicle data
+        // Reset vehicle data including mileage
         if (tvSpeedValue != null)
             tvSpeedValue.setText("-- km/h");
         tvOdoValue.setText("--");
@@ -324,10 +356,45 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         tvGearValue.setText("-");
         tvTripAValue.setText("-- km");
         tvTripBValue.setText("-- km");
+        if (tvMileageValue != null) tvMileageValue.setText("--"); // P3
 
         Toast.makeText(this, "Disconnected from vehicle", Toast.LENGTH_SHORT).show();
     }
 
+    /**
+     * P1: Refresh last parked time on the dashboard card from SharedPrefs.
+     * P2: Refresh trip count from Realm DB.
+     * Called onResume so the card always shows current data.
+     */
+    private void refreshDashboardCards() {
+        // P1: Last Parked time
+        SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+        long parkedTime = prefs.getLong("last_parked_time", 0L);
+        if (tvLastParkedTime != null) {
+            if (parkedTime > 0) {
+                CharSequence timeAgo = DateUtils.getRelativeTimeSpanString(
+                        parkedTime, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS);
+                tvLastParkedTime.setText(timeAgo);
+            } else {
+                tvLastParkedTime.setText("Not saved");
+            }
+        }
+
+        // P2: Trip count
+        if (tvTripCount != null) {
+            try {
+                Realm realm = Realm.getDefaultInstance();
+                long count = realm.where(com.suzuki.sconnect.data.model.TripRecord.class)
+                        .equalTo("status", "COMPLETED").count();
+                realm.close();
+                tvTripCount.setText(count > 0
+                        ? count + " trip" + (count == 1 ? "" : "s")
+                        : "No trips");
+            } catch (Exception e) {
+                tvTripCount.setText("No trips");
+            }
+        }
+    }
     private void checkPermissions() {
         List<String> permissions = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -438,5 +505,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // Re-enable scroll listener when returning from full-screen map
         setupScrollAnimation();
+
+        // P1 + P2: Refresh Last Parked time and Trip count every time we return here
+        refreshDashboardCards();
     }
 }

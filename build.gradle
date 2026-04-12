@@ -5,10 +5,13 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.1.0'
+        // Realm Java SDK — required for the realm-android transform plugin
+        classpath "io.realm:realm-gradle-plugin:10.18.0"
     }
 }
 
 apply plugin: 'com.android.application'
+apply plugin: 'realm-android'  // Realm Java SDK transform plugin
 
 allprojects {
     repositories {

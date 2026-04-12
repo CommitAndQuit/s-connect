@@ -6,6 +6,7 @@ import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
 import com.suzuki.sconnect.ble.protocol.SuzukiPacketParser;
 import com.suzuki.sconnect.utils.DebugLogger;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -15,6 +16,10 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationManager;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Handler;
@@ -22,6 +27,7 @@ import android.os.IBinder;
 import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
 import android.telephony.PhoneStateListener;
 import android.telephony.SignalStrength;
@@ -57,6 +63,12 @@ public class BleConnectionService extends Service {
     // Real telemetry state for heartbeat packet
     private int lastSpeedKmh = 0;   // Updated from ?7 cluster packet
     private String lastSignalLevel = "1"; // "0"–"3", updated by PhoneStateListener
+
+    // ── P3: Fuel Consumption Tracking ────────────────────────────────────────────────────
+    private int startOdometer = -1;           // ODO at connection time (in km)
+    private double cumulativeFuelConsumed = 0.0; // accumulated fuel since connection (litres)
+    private double lastMileageKmL = 0.0;      // last computed mileage
+    // ─────────────────────────────────────────────────────────────────────────────────────
 
     private TelephonyManager telephonyManager;
     private PhoneStateListener signalListener;
@@ -172,6 +184,17 @@ public class BleConnectionService extends Service {
                 updateNotification("Disconnected", "");
                 broadcastStateChange("DISCONNECTED");
                 stopHeartbeat();
+
+                // ── P1: Save Last Parked Location ──────────────────────────────────────
+                // On disconnect, snapshot the last known GPS position so
+                // LastParkedLocationActivity can show where the bike was parked.
+                saveLastParkedLocation();
+                // ──────────────────────────────────────────────────────────────────────
+
+                // Reset fuel tracking so next connection starts fresh
+                startOdometer = -1;
+                cumulativeFuelConsumed = 0.0;
+                lastMileageKmL = 0.0;
             }
 
             @Override
@@ -192,6 +215,29 @@ public class BleConnectionService extends Service {
                 lastSpeedKmh = data.speed;
                 DebugLogger.d("Service", "Heartbeat speed updated: " + lastSpeedKmh + " km/h");
 
+                // ── P3: Fuel Consumption Accumulation ────────────────────────────────────
+                // Initialise start ODO on first packet after connection
+                if (startOdometer < 0) {
+                    startOdometer = data.odometer;
+                    DebugLogger.i("Service", "P3: Start ODO set to " + startOdometer + " km");
+                }
+
+                // Accumulate instantaneous fuel consumption (litres per cluster update)
+                if (data.fuelConsumption > 0) {
+                    cumulativeFuelConsumed += data.fuelConsumption;
+                }
+
+                // Compute mileage: km / L
+                double distanceTravelled = (data.odometer - startOdometer); // km (ODO is in km)
+                if (distanceTravelled > 0 && cumulativeFuelConsumed > 0) {
+                    lastMileageKmL = (distanceTravelled * 1000.0) / cumulativeFuelConsumed;
+                    // cap at a sanity maximum (200 km/L) to filter out stale/zero fuel readings
+                    if (lastMileageKmL > 200.0) lastMileageKmL = 0.0;
+                }
+                DebugLogger.d("Service", String.format("P3: FC=%.4fL cumulative=%.4fL dist=%.1fkm mileage=%.1f km/L",
+                        data.fuelConsumption, cumulativeFuelConsumed, distanceTravelled, lastMileageKmL));
+                // ─────────────────────────────────────────────────────────────────────────
+
                 // Broadcast data to UI
                 Intent intent = new Intent(ACTION_VEHICLE_DATA);
                 intent.setPackage(getPackageName()); // Explicit package for internal broadcast
@@ -201,12 +247,13 @@ public class BleConnectionService extends Service {
                 intent.putExtra("tripB", data.tripB);
                 intent.putExtra("gear", (int) data.gear); // Cast to int for proper transmission
                 intent.putExtra("fuelLevel", data.fuelLevel);
+                intent.putExtra("mileageKmL", (float) lastMileageKmL); // P3: mileage
 
                 DebugLogger.d("Service", "Sending broadcast: " + ACTION_VEHICLE_DATA);
                 sendBroadcast(intent);
 
-                updateNotification("Connected", String.format("Speed: %d km/h | ODO: %d km",
-                        data.speed, data.odometer));
+                updateNotification("Connected", String.format("Speed: %d km/h | ODO: %d km | %.1f km/L",
+                        data.speed, data.odometer, lastMileageKmL));
             }
 
             @Override
@@ -400,6 +447,52 @@ public class BleConnectionService extends Service {
         intent.setPackage(getPackageName()); // Explicit package for internal broadcast
         intent.putExtra("state", state);
         sendBroadcast(intent);
+    }
+
+    /**
+     * P1 — Last Parked Location
+     * Snapshots the last known GPS position into SharedPreferences when BLE disconnects.
+     * Uses LocationManager.getLastKnownLocation() — no continuous GPS drain required.
+     * Stores: last_parked_lat, last_parked_lng, last_parked_time (epoch ms).
+     */
+    private void saveLastParkedLocation() {
+        try {
+            boolean hasPermission = ContextCompat.checkSelfPermission(this,
+                    android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+
+            if (!hasPermission) {
+                DebugLogger.w("Service", "P1: Location permission not granted — cannot save parked location");
+                return;
+            }
+
+            LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+            Location location = null;
+
+            // Prefer GPS provider; fall back to network provider
+            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            }
+            if (location == null && locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            }
+
+            if (location != null) {
+                SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+                prefs.edit()
+                        .putFloat("last_parked_lat", (float) location.getLatitude())
+                        .putFloat("last_parked_lng", (float) location.getLongitude())
+                        .putLong("last_parked_time", System.currentTimeMillis())
+                        .apply();
+
+                DebugLogger.i("Service", String.format(
+                        "P1: Parked location saved — lat=%.5f, lng=%.5f",
+                        location.getLatitude(), location.getLongitude()));
+            } else {
+                DebugLogger.w("Service", "P1: No GPS fix available at disconnect time — parked location not saved");
+            }
+        } catch (Exception e) {
+            DebugLogger.e("Service", "P1: Error saving parked location", e);
+        }
     }
 
     private void broadcastError(String error) {

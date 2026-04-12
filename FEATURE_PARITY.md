@@ -4,9 +4,23 @@
 
 ---
 
+---
+
+## 📊 Feature Parity Progress
+
+```mermaid
+pie title "SConnect Feature Completion"
+    "Complete (✅)" : 24
+    "Partial (🟡)" : 8
+    "Missing (❌)" : 34
+    "Skipped (🚫)" : 4
+```
+
+---
+
 ## Executive Summary
 
-The official Suzuki app contains **~45+ screens/activities** spanning vehicle management, telemetry, navigation, service scheduling, and social/content features. SConnect currently covers **~5 core activities** focused on BLE connectivity, navigation, and basic telemetry. The overall feature parity is estimated at **~25-30%**.
+The official Suzuki app contains **~45+ screens/activities** spanning vehicle management, telemetry, navigation, service scheduling, and social/content features. SConnect currently covers **~12 core activities** including BLE connectivity, navigation, trip recording, last parked location, and real-time telemetry. The overall feature parity is estimated at **~42%**.
 
 ---
 
@@ -42,8 +56,8 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 | 2.1 | Odometer Display | Parsed from `?7` packet bytes 5-11 | Parsed in `SuzukiPacketParser` | ✅ | Working |
 | 2.2 | Trip A / Trip B | Parsed from cluster response packet | Parsed in `SuzukiPacketParser` | ✅ | Working |
 | 2.3 | Fuel Level | Parsed from cluster response | Parsed in `SuzukiPacketParser` | ✅ | Working |
-| 2.4 | Gear Position | Parsed from packet byte, displays N/1/2/3/4/5 | Parsed but has **known display bug** (always shows Neutral) | 🟡 | Known issue from conv `f7f65c29` |
-| 2.5 | Fuel Consumption Calc | `HomeScreenActivity.onClusterDataRecev()` — Complex real-time km/l calculation from bytes 25-27 | ❌ Not implemented | ❌ | Major gap — uses bit-level parsing of fuel consumption data |
+| 2.4 | Gear Position | Parsed from packet byte, displays N/1/2/3/4/5 | Fixed in conv `f7f65c29` — handled binary/ASCII auto-detection | ✅ | Fully functional |
+| 2.5 | Fuel Consumption Calc | `HomeScreenActivity.onClusterDataRecev()` — Complex real-time km/l calculation from bytes 25-27 | Implemented in `SuzukiPacketParser` (13/11-bit split formula) | ✅ | Integrated with `BleConnectionService` |
 | 2.6 | Real-time Speed | Investigated in conv `1c7998f1` — speed not in `?7` packet | Both: No speed data from cluster | ✅ | Same limitation in both |
 | 2.7 | Last Synced ODO Storage | Stores last synced ODO in SharedPrefs per vehicle | Not implemented | ❌ | |
 | 2.8 | e-ACCESS / EV Telemetry | Separate energy consumption logic (`Energy Consumption` vs `Fuel Consumption`) | Not implemented | ❌ | Only relevant for e-ACCESS scooter |
@@ -67,8 +81,8 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 | 3.11 | GPS Provider Check | Handles GPS disable gracefully | Identified in conv `c60dcc9b` | 🟡 | Partially handled |
 | 3.12 | Navigation as Service | Official runs navigation data send as background-safe logic | Investigated in conv `2d662aeb`, not yet migrated | 🟡 | Activity-based, killed by battery saver |
 | 3.13 | Route with Nearby Search | `RouteNearByActivity` — Nearby POI (fuel, food, etc.) along route | Not implemented | ❌ | |
-| 3.14 | Trip Recording | `TripActivity` + `TripDetailsActivity` — Records rides with Recent/Favourites, stores in Realm DB | Not implemented | ❌ | Major gap |
-| 3.15 | Trip Details / Replay | View past trip details including route on map | Not implemented | ❌ | |
+| 3.14 | Trip Recording | `TripActivity` + `TripDetailsActivity` — Records rides with Recent/Favourites, stores in Realm DB | `TripHistoryActivity` + `TripRecord` — Persistent trip logging | ✅ | Implemented with Realm DB |
+| 3.15 | Trip Details / Replay | View past trip details including route on map | `TripDetailActivity` — Shows route, stats, and time | ✅ | Working |
 | 3.16 | Navigation Device Selection | `NavigationDeviceListingActivity` — Select which cluster to pair for nav | Not needed (single device) | 🚫 | Simplified architecture |
 | 3.17 | Text-to-Speech | `HomeScreenActivity.a0` — Voice guidance using Android TTS | Not implemented | ❌ | |
 
@@ -116,9 +130,9 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 
 | # | Feature | Official App | SConnect | Parity | Notes |
 |:---:|:---|:---|:---|:---:|:---|
-| 7.1 | Last Parked Location | `LastParkedLocationActivity` — Records lat/lng on BLE disconnect, shows on map with directions | Not implemented | ❌ | 442-line activity with full map + routing |
-| 7.2 | Location Share | Share last parked location via Android share intent | Not implemented | ❌ | |
-| 7.3 | Walk-to-Bike Navigation | Walking directions from current location to parked bike (< 500m) | Not implemented | ❌ | |
+| 7.1 | Last Parked Location | `LastParkedLocationActivity` — Records lat/lng on BLE disconnect, shows on map with directions | `LastParkedLocationActivity` — Full map + auto-save on disconnect | ✅ | Implemented |
+| 7.2 | Location Share | Share last parked location via Android share intent | `shareLocation()` via Android Share Intent | ✅ | Implemented |
+| 7.3 | Walk-to-Bike Navigation | Walking directions from current location to parked bike (< 500m) | Smart routing: Walking (<500m) vs Biking (>500m) | ✅ | Implemented |
 
 ---
 
@@ -175,19 +189,19 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 | Category | Total Features | ✅ Complete | 🟡 Partial | ❌ Missing | 🚫 Skipped |
 |:---|:---:|:---:|:---:|:---:|:---:|
 | **BLE & Connectivity** | 5 | 4 | 1 | 0 | 0 |
-| **Vehicle Telemetry** | 8 | 4 | 1 | 3 | 0 |
-| **Navigation** | 17 | 8 | 4 | 5 | 0 |
+| **Vehicle Telemetry** | 8 | 6 | 0 | 2 | 0 |
+| **Navigation** | 17 | 11 | 3 | 2 | 1 |
 | **Fuel Economy** | 4 | 0 | 0 | 4 | 0 |
 | **Service & Maintenance** | 5 | 0 | 0 | 5 | 0 |
 | **Vehicle/Profile Mgmt** | 8 | 0 | 0 | 8 | 0 |
-| **Location Features** | 3 | 0 | 0 | 3 | 0 |
+| **Location Features** | 3 | 3 | 0 | 0 | 0 |
 | **Notifications** | 3 | 0 | 3 | 0 | 0 |
 | **Help & Information** | 6 | 0 | 0 | 6 | 0 |
 | **Subscription** | 3 | 0 | 0 | 0 | 3 |
 | **UX / App Shell** | 8 | 0 | 1 | 7 | 0 |
-| **TOTAL** | **70** | **16** | **10** | **41** | **3** |
+| **TOTAL** | **70** | **24** | **8** | **34** | **4** |
 
-> **Overall Parity: ~37%** (counting partial as 0.5) — **21/67 effective features** (excluding proprietary)
+> **Overall Parity: ~42.4%** (counting partial as 0.5) — **28/66 effective features** (excluding proprietary)
 
 ---
 
@@ -195,14 +209,14 @@ The official Suzuki app contains **~45+ screens/activities** spanning vehicle ma
 
 Based on rider value, technical feasibility, and community demand:
 
-### Tier 1 — High Impact, Core Experience *(Next Sprint)*
+### Tier 1 — High Impact, Core Experience *(Completed ✅)*
 
-| Priority | Feature | Effort | Why |
-|:---:|:---|:---:|:---|
-| **P0** | Fix Gear Display Bug (#2.4) | Low | Known bug, confuses users |
-| **P1** | Last Parked Location (#7.1) | Medium | #1 requested utility feature on forums |
-| **P2** | Trip Recording & History (#3.14, #3.15) | Medium | Essential ride logging |
-| **P3** | Fuel Consumption Calculation (#2.5) | Medium | Core telemetry expectation |
+| Priority | Feature | Effort | Status | Why |
+|:---:|:---|:---:|:---:|:---|
+| **P0** | Fix Gear Display Bug (#2.4) | Low | ✅ | Fixed binary/ASCII edge cases |
+| **P1** | Last Parked Location (#7.1) | Medium | ✅ | Integrated map + sharing |
+| **P2** | Trip Recording & History (#3.14, #3.15) | Medium | ✅ | Realm DB storage implemented |
+| **P3** | Fuel Consumption Calculation (#2.5) | Medium | ✅ | 13/11-bit telemetry parsing |
 
 ### Tier 2 — Differentiation Features *(Medium Term)*
 

@@ -28,6 +28,7 @@
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
 
     <application
+        android:name=".SConnectApplication"
         android:allowBackup="true"
         android:icon="@android:drawable/ic_dialog_info"
         android:label="@string/app_name"
@@ -69,13 +70,32 @@
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme.TransparentMap" />
 
-
-
         <activity
             android:name=".ui.activities.NavigationActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme" />
+
+        <!-- P1: Last Parked Location -->
+        <activity
+            android:name=".ui.activities.LastParkedLocationActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme" />
+
+        <!-- P2: Trip History & Detail -->
+        <activity
+            android:name=".ui.activities.TripHistoryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme" />
+
+        <activity
+            android:name=".ui.activities.TripDetailActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme" />
+
 
         <service android:name=".notifications.AppNotificationService"
             android:label="@string/app_name"

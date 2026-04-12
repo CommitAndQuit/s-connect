@@ -2,7 +2,11 @@ package com.suzuki.sconnect.ui.activities;
 
 import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.ble.BleConnectionService;
+import com.suzuki.sconnect.data.model.TripRecord;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
@@ -37,6 +41,9 @@ import com.mappls.sdk.services.api.directions.models.LegStep;
 import com.mappls.sdk.services.api.directions.models.RouteLeg;
 
 import java.util.Arrays;
+import java.util.UUID;
+
+import io.realm.Realm;
 
 public class NavigationActivity extends AppCompatActivity
         implements DirectionCallback, com.suzuki.sconnect.utils.NavigationSession.NavigationUpdateListener,
@@ -80,6 +87,44 @@ public class NavigationActivity extends AppCompatActivity
     private static final int REROUTE_THRESHOLD_METERS = 75; // raised from 50 to absorb GPS jitter
     private static final long CLUSTER_INTERVAL_MS = 200;
 
+    // ── P2: Trip Recording State ───────────────────────────────────────────────────
+    private Realm realm;
+    private String currentTripId = null;  // Realm primary key of the active trip
+    private int tripStartOdometer = -1;   // ODO snapshot at trip start
+    private int tripTopSpeedKmh = 0;      // Running max speed during this trip
+    private double tripTotalSpeedSum = 0; // For average speed computation
+    private int tripSpeedSamples = 0;
+    private float tripFuelAtStart = 0;    // Cumulative mileage from service at trip start
+
+    /** Receives ACTION_VEHICLE_DATA to capture speed for trip stats. */
+    private final BroadcastReceiver vehicleDataReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, android.content.Intent intent) {
+            int speed = intent.getIntExtra("speed", 0);
+            int odometer = intent.getIntExtra("odometer", -1);
+
+            // Update top speed
+            if (speed > tripTopSpeedKmh) tripTopSpeedKmh = speed;
+
+            // Running average speed (only count non-zero samples while moving)
+            if (speed > 0) {
+                tripTotalSpeedSum += speed;
+                tripSpeedSamples++;
+            }
+
+            // Update trip distance in Realm (live update)
+            if (tripStartOdometer >= 0 && odometer > tripStartOdometer && currentTripId != null) {
+                float distKm = odometer - tripStartOdometer;
+                realm.executeTransactionAsync(r -> {
+                    TripRecord t = r.where(TripRecord.class)
+                            .equalTo("id", currentTripId).findFirst();
+                    if (t != null) t.setDistanceKm(distKm);
+                });
+            }
+        }
+    };
+    // ─────────────────────────────────────────────────────────────────────
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -105,6 +150,9 @@ public class NavigationActivity extends AppCompatActivity
         navigationSession = new com.suzuki.sconnect.utils.NavigationSession();
         routeManager = new com.suzuki.sconnect.utils.MapplsRouteManager();
         setupLocationUpdates();
+
+        // P2: Initialise Realm for trip recording
+        realm = Realm.getDefaultInstance();
 
         int selectedRouteIndex = getIntent().getIntExtra("selectedRouteIndex", -1);
         if (selectedRouteIndex != -1) {
@@ -360,6 +408,11 @@ public class NavigationActivity extends AppCompatActivity
 
             // Send ?6 Identification Packet (once)
             sendIdentificationPacket();
+
+            // ── P2: Begin trip recording ───────────────────────────────────────
+            startTripRecording();
+            // ────────────────────────────────────────────────────────────
+
         } else {
             android.util.Log.e("NavigationActivity", "startActualNavigation: route null");
         }
@@ -604,10 +657,94 @@ public class NavigationActivity extends AppCompatActivity
         });
     }
 
+    // ── P2: Trip Recording Helpers ────────────────────────────────────────────────────────
+
+    /**
+     * Create a new IN_PROGRESS TripRecord in Realm and register the vehicle data receiver
+     * so this Activity can capture speed/ODO stats while navigating.
+     */
+    private void startTripRecording() {
+        tripTopSpeedKmh = 0;
+        tripTotalSpeedSum = 0;
+        tripSpeedSamples = 0;
+        tripStartOdometer = -1;
+
+        currentTripId = UUID.randomUUID().toString();
+
+        String destination = getIntent().getStringExtra("destination_name");
+        if (destination == null) destination = "Destination";
+        final String destName = destination;
+
+        String origin = getIntent().getStringExtra("origin_name");
+        if (origin == null) origin = "Start";
+        final String originName = origin;
+
+        final String tripId = currentTripId;
+        final long now = System.currentTimeMillis();
+
+        realm.executeTransactionAsync(r -> {
+            TripRecord trip = r.createObject(TripRecord.class, tripId);
+            trip.setStartTimeMs(now);
+            trip.setStartPlaceName(originName);
+            trip.setEndPlaceName(destName);
+            trip.setStatus("IN_PROGRESS");
+        }, () -> Log.d("NavigationActivity", "P2: Trip record created: " + tripId),
+           err -> Log.e("NavigationActivity", "P2: Realm error creating trip", err));
+
+        // Register vehicle data receiver to capture speed and ODO during the trip
+        IntentFilter filter = new IntentFilter(BleConnectionService.ACTION_VEHICLE_DATA);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(vehicleDataReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(vehicleDataReceiver, filter);
+        }
+
+        Log.i("NavigationActivity", "P2: Trip recording started: " + tripId);
+    }
+
+    /**
+     * Finalize the current trip: set COMPLETED status, end time, and final stats.
+     * @param destinationReached true if the user actually arrived; false if manually stopped.
+     */
+    private void finalizeTripRecording(boolean destinationReached) {
+        if (currentTripId == null) return;
+
+        final String tripId = currentTripId;
+        currentTripId = null;
+
+        final long endTime = System.currentTimeMillis();
+        final int topSpeed = tripTopSpeedKmh;
+        final float avgSpeed = tripSpeedSamples > 0
+                ? (float) (tripTotalSpeedSum / tripSpeedSamples)
+                : 0f;
+
+        realm.executeTransactionAsync(r -> {
+            TripRecord trip = r.where(TripRecord.class).equalTo("id", tripId).findFirst();
+            if (trip != null) {
+                trip.setEndTimeMs(endTime);
+                trip.setTopSpeedKmh(topSpeed);
+                trip.setAvgSpeedKmh(avgSpeed);
+                trip.setStatus("COMPLETED");
+            }
+        }, () -> Log.i("NavigationActivity", "P2: Trip finalized: " + tripId +
+                " | topSpeed=" + topSpeed + " avgSpeed=" + avgSpeed),
+           err -> Log.e("NavigationActivity", "P2: Realm error finalizing trip", err));
+
+        // Unregister vehicle data receiver
+        try { unregisterReceiver(vehicleDataReceiver); } catch (Exception ignored) {}
+
+        Log.i("NavigationActivity", "P2: Trip recording ended" + (destinationReached ? " (destination reached)" : " (manual stop)"));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────────────
+
     private void stopNavigation() {
         android.util.Log.d("NavigationActivity", "Stopping Navigation");
         isNavigationStarted = false;
         clusterHandler.removeCallbacks(clusterRunnable);
+
+        // P2: Finalize trip record (manual stop)
+        finalizeTripRecording(false);
 
         // Clear route visualization
         for (Polyline polyline : routePolylines) {
@@ -649,6 +786,7 @@ public class NavigationActivity extends AppCompatActivity
     @Override
     public void onDestinationReached() {
         Toast.makeText(this, "Destination Reached!", Toast.LENGTH_LONG).show();
+        finalizeTripRecording(true); // P2
         stopNavigation();
     }
 
@@ -698,6 +836,9 @@ public class NavigationActivity extends AppCompatActivity
         if (navigationSession != null) {
             navigationSession.stopSession();
         }
+        // P2: Unregister vehicle data receiver and clean up Realm
+        try { unregisterReceiver(vehicleDataReceiver); } catch (Exception ignored) {}
+        if (realm != null && !realm.isClosed()) realm.close();
     }
 
     @Override
