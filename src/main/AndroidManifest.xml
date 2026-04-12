@@ -124,6 +124,12 @@
             android:theme="@style/AppTheme" />
 
 
+        <activity
+            android:name=".ui.activities.VehicleDetailsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme" />
+
         <service android:name=".notifications.AppNotificationService"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"

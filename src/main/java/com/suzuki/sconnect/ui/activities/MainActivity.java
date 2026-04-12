@@ -69,7 +69,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ImageButton btnPower, btnSettings;
     private TextView tvDeviceName, tvOdoValue, tvFuelValue, tvGearValue, tvTripAValue, tvTripBValue, tvSpeedValue;
     private TextView tvMileageValue;        // P3: live mileage
-    private MaterialCardView cardLastParked, cardTripHistory, cardFuelEconomy, cardService;
+    private MaterialCardView cvDataCard;
     private ImageView ivBluetoothStatus;
     private View mapCard;
     private MapView mapView;
@@ -136,10 +136,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         tvTripBValue = findViewById(R.id.tvTripBValue);
         tvSpeedValue = findViewById(R.id.tvSpeedValue);
         tvMileageValue = findViewById(R.id.tvMileageValue);      // P3
-        cardLastParked = findViewById(R.id.cardLastParked);        // P1
-        cardFuelEconomy = findViewById(R.id.cardFuelEconomy);      // P5
-        cardTripHistory = findViewById(R.id.cardTripHistory);       // P2
-        cardService = findViewById(R.id.cardService);               // P7
+        cvDataCard = findViewById(R.id.cvDataCard);
         ivBluetoothStatus = findViewById(R.id.ivBluetoothStatus);
         mapCard = findViewById(R.id.mapCard);
         mapView = findViewById(R.id.map_view);
@@ -165,21 +162,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // Open full-screen map when map preview is clicked
         mapCard.setOnClickListener(v -> openFullScreenMap());
 
-        // P1: Last Parked Location card
-        cardLastParked.setOnClickListener(v ->
-                startActivity(new Intent(this, LastParkedLocationActivity.class)));
-
-        // P2: Trip History card
-        cardTripHistory.setOnClickListener(v ->
-                startActivity(new Intent(this, TripHistoryActivity.class)));
-
-        // P5: Fuel Economy card
-        cardFuelEconomy.setOnClickListener(v ->
-                startActivity(new Intent(this, FuelEconomyActivity.class)));
-
-        // P7: Service Reminders card
-        cardService.setOnClickListener(v ->
-                startActivity(new Intent(this, ServiceRemindersActivity.class)));
+        // Open vehicle details when data card is clicked
+        cvDataCard.setOnClickListener(v -> openVehicleDetails());
 
         // Setup scroll listener to open full-screen on scroll up
         setupScrollAnimation();
@@ -237,6 +221,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     this,
                     mapView,
                     "mapTransition");
+            startActivity(intent, options.toBundle());
+        } else {
+            startActivity(intent);
+        }
+    }
+
+    private void openVehicleDetails() {
+        Intent intent = new Intent(this, VehicleDetailsActivity.class);
+
+        // Shared element transition for seamless expansion
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            android.util.Pair<View, String> p1 = android.util.Pair.create(cvDataCard, "dataCardTransition");
+            android.util.Pair<View, String> p2 = android.util.Pair.create(tvOdoValue, "odoValueTransition");
+            android.util.Pair<View, String> p3 = android.util.Pair.create(tvFuelValue, "fuelValueTransition");
+            android.util.Pair<View, String> p4 = android.util.Pair.create(tvGearValue, "gearValueTransition");
+
+            ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation(
+                    this, p1, p2, p3, p4);
             startActivity(intent, options.toBundle());
         } else {
             startActivity(intent);
