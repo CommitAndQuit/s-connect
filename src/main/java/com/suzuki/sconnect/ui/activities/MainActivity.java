@@ -1,5 +1,6 @@
 package com.suzuki.sconnect.ui.activities;
 
+import com.suzuki.sconnect.BuildConfig;
 import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.ble.BleConnectionService;
 import com.suzuki.sconnect.ble.SuzukiBleScanner;
@@ -112,10 +113,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
 
         // Initialize Mappls SDK
-        MapplsAccountManager.getInstance().setRestAPIKey(getString(R.string.mappls_rest_api_key));
-        MapplsAccountManager.getInstance().setMapSDKKey(getString(R.string.mappls_map_sdk_key));
-        MapplsAccountManager.getInstance().setAtlasClientId(getString(R.string.mappls_client_id));
-        MapplsAccountManager.getInstance().setAtlasClientSecret(getString(R.string.mappls_client_secret));
+        MapplsAccountManager.getInstance().setRestAPIKey(BuildConfig.MAPPLS_REST_API_KEY);
+        MapplsAccountManager.getInstance().setMapSDKKey(BuildConfig.MAPPLS_MAP_SDK_KEY);
+        MapplsAccountManager.getInstance().setAtlasClientId(BuildConfig.MAPPLS_CLIENT_ID);
+        MapplsAccountManager.getInstance().setAtlasClientSecret(BuildConfig.MAPPLS_CLIENT_SECRET);
         Mappls.getInstance(this);
 
         setContentView(R.layout.activity_main);

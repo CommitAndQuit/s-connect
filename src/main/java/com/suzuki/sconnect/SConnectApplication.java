@@ -20,10 +20,10 @@ public class SConnectApplication extends Application {
         super.onCreate();
 
         // Initialize Mappls SDK here for global context
-        MapplsAccountManager.getInstance().setRestAPIKey(getString(R.string.mappls_rest_api_key));
-        MapplsAccountManager.getInstance().setMapSDKKey(getString(R.string.mappls_map_sdk_key));
-        MapplsAccountManager.getInstance().setAtlasClientId(getString(R.string.mappls_client_id));
-        MapplsAccountManager.getInstance().setAtlasClientSecret(getString(R.string.mappls_client_secret));
+        MapplsAccountManager.getInstance().setRestAPIKey(BuildConfig.MAPPLS_REST_API_KEY);
+        MapplsAccountManager.getInstance().setMapSDKKey(BuildConfig.MAPPLS_MAP_SDK_KEY);
+        MapplsAccountManager.getInstance().setAtlasClientId(BuildConfig.MAPPLS_CLIENT_ID);
+        MapplsAccountManager.getInstance().setAtlasClientSecret(BuildConfig.MAPPLS_CLIENT_SECRET);
         Mappls.getInstance(this);
 
         // Initialize Realm (P2 — Trip Recording)

@@ -12,6 +12,10 @@ buildscript {
 
 apply plugin: 'com.android.application'
 apply plugin: 'realm-android'
+Properties properties = new Properties()
+if (project.rootProject.file('app/local.properties').canRead()) {
+    properties.load(new FileInputStream(project.rootProject.file('app/local.properties')))
+}
 
 android {
     namespace 'com.suzuki.sconnect'
@@ -25,6 +29,15 @@ android {
         versionName "1.0-debug"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField "String", "MAPPLS_CLIENT_ID", "\"${properties.getProperty('mappls.client.id')}\""
+        buildConfigField "String", "MAPPLS_CLIENT_SECRET", "\"${properties.getProperty('mappls.client.secret')}\""
+        buildConfigField "String", "MAPPLS_MAP_SDK_KEY", "\"${properties.getProperty('mappls.map.sdk.key')}\""
+        buildConfigField "String", "MAPPLS_REST_API_KEY", "\"${properties.getProperty('mappls.rest.api.key')}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     buildTypes {
