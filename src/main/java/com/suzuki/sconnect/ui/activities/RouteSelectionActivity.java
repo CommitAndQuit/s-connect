@@ -26,6 +26,7 @@ import com.mappls.sdk.services.api.directions.models.DirectionsResponse;
 import com.mappls.sdk.services.api.directions.models.DirectionsRoute;
 import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.utils.MapplsRouteManager;
+import com.suzuki.sconnect.utils.VehicleStateHolder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +43,11 @@ public class RouteSelectionActivity extends AppCompatActivity implements OnMapRe
     private List<Polyline> polylines = new ArrayList<>();
     private int selectedRouteIndex = 0;
 
+    private CardView cardFuelStrategist;
+    private TextView tvExpectedBurn;
+    private TextView tvCurrentFuel;
+    private TextView tvFuelWarning;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -50,6 +56,11 @@ public class RouteSelectionActivity extends AppCompatActivity implements OnMapRe
         mapView = findViewById(R.id.route_map_view);
         llRouteCards = findViewById(R.id.ll_route_cards);
         btnStartNav = findViewById(R.id.btn_start_navigation);
+
+        cardFuelStrategist = findViewById(R.id.card_fuel_strategist);
+        tvExpectedBurn = findViewById(R.id.tv_expected_burn);
+        tvCurrentFuel = findViewById(R.id.tv_current_fuel);
+        tvFuelWarning = findViewById(R.id.tv_fuel_warning);
 
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
@@ -135,7 +146,42 @@ public class RouteSelectionActivity extends AppCompatActivity implements OnMapRe
             addRouteCard(route, i);
         }
 
+        updateFuelStrategistCard();
+
         zoomToFitRoutes();
+    }
+
+    private void updateFuelStrategistCard() {
+        if (routes == null || routes.isEmpty() || selectedRouteIndex >= routes.size()) {
+            cardFuelStrategist.setVisibility(View.GONE);
+            return;
+        }
+
+        DirectionsRoute route = routes.get(selectedRouteIndex);
+        double distanceKm = (route.distance() != null ? route.distance() : 0) / 1000.0;
+
+        int fuelBars = VehicleStateHolder.getInstance().getFuelLevel();
+        float mileage = VehicleStateHolder.getInstance().getMileageKmL();
+        if (mileage <= 0) {
+            mileage = 27f; // Default for Gixxer SF 250
+        }
+
+        // Suzuki Gixxer SF 250 logic: ~10L usability + ~2L reserve. 
+        // Based on user feedback: 1L empty basline + (1.8L per bar)
+        double currentFuelLiters = 1.0 + (fuelBars * 1.8);
+        double expectedBurnLiters = distanceKm / mileage;
+
+        cardFuelStrategist.setVisibility(View.VISIBLE);
+        tvExpectedBurn.setText(String.format("Est. Burn: %.1f L", expectedBurnLiters));
+        tvCurrentFuel.setText(String.format("Current: %.1f L", currentFuelLiters));
+
+        if (expectedBurnLiters > currentFuelLiters) {
+            tvFuelWarning.setText("⚠️ Fuel stop required!");
+            tvFuelWarning.setTextColor(Color.parseColor("#FF5252")); // Red
+        } else {
+            tvFuelWarning.setText("✅ Sufficient fuel for route");
+            tvFuelWarning.setTextColor(Color.parseColor("#4CAF50")); // Green
+        }
     }
 
     private void addRouteToMap(DirectionsRoute route, boolean isSelected) {
