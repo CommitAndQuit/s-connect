@@ -13,8 +13,8 @@ buildscript {
 apply plugin: 'com.android.application'
 apply plugin: 'realm-android'
 Properties properties = new Properties()
-if (project.rootProject.file('app/local.properties').canRead()) {
-    properties.load(new FileInputStream(project.rootProject.file('app/local.properties')))
+if (rootProject.file('local.properties').canRead()) {
+    properties.load(new FileInputStream(rootProject.file('local.properties')))
 }
 
 android {

@@ -8,6 +8,7 @@ import com.suzuki.sconnect.ui.adapters.DeviceAdapter;
 import com.suzuki.sconnect.utils.VehicleStateHolder;
 
 import android.Manifest;
+import android.util.Log;
 import android.app.ActivityOptions;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -58,6 +59,8 @@ import com.mappls.sdk.maps.location.modes.RenderMode;
 import com.mappls.sdk.services.account.MapplsAccountManager;
 import com.mappls.sdk.maps.Mappls;
 import com.mappls.sdk.maps.location.permissions.PermissionsManager;
+import com.mappls.sdk.maps.annotations.MarkerOptions;
+import com.mappls.sdk.maps.annotations.Marker;
 
 import io.realm.Realm;
 
@@ -77,6 +80,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private MapView mapView;
     private MapplsMap mapplsMap;
     private NestedScrollView nestedScrollView;
+    private Marker parkedMarker;
 
 
     // Device Selection Sheet
@@ -112,11 +116,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Initialize Mappls SDK
-        MapplsAccountManager.getInstance().setRestAPIKey(BuildConfig.MAPPLS_REST_API_KEY);
-        MapplsAccountManager.getInstance().setMapSDKKey(BuildConfig.MAPPLS_MAP_SDK_KEY);
-        MapplsAccountManager.getInstance().setAtlasClientId(BuildConfig.MAPPLS_CLIENT_ID);
-        MapplsAccountManager.getInstance().setAtlasClientSecret(BuildConfig.MAPPLS_CLIENT_SECRET);
+        // Initialize Mappls SDK (already initialized in Application, keeping here for safety but cleaned up)
         Mappls.getInstance(this);
 
         setContentView(R.layout.activity_main);
@@ -208,14 +208,34 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void openFullScreenMap() {
         Intent intent = new Intent(this, FullScreenMapActivity.class);
 
-        // Pass current map state for seamless transition
-        if (mapplsMap != null) {
-            LatLng currentPosition = mapplsMap.getCameraPosition().target;
-            double currentZoom = mapplsMap.getCameraPosition().zoom;
-            intent.putExtra("latitude", currentPosition.getLatitude());
-            intent.putExtra("longitude", currentPosition.getLongitude());
-            intent.putExtra("zoom", currentZoom);
+        double lat = 28.6139; // Default to Delhi
+        double lng = 77.2090;
+        double zoom = 13.0;
+        boolean isParked = false;
+
+        if (!isConnected) {
+            SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+            float parkedLat = prefs.getFloat("last_parked_lat", 0.0f);
+            float parkedLng = prefs.getFloat("last_parked_lng", 0.0f);
+            if (parkedLat != 0.0f && parkedLng != 0.0f) {
+                lat = parkedLat;
+                lng = parkedLng;
+                isParked = true;
+                zoom = 15.0; // Zoom in a bit for parked location
+            }
         }
+
+        if (!isParked && mapplsMap != null) {
+            LatLng currentPosition = mapplsMap.getCameraPosition().target;
+            lat = currentPosition.getLatitude();
+            lng = currentPosition.getLongitude();
+            zoom = mapplsMap.getCameraPosition().zoom;
+        }
+
+        intent.putExtra("latitude", lat);
+        intent.putExtra("longitude", lng);
+        intent.putExtra("zoom", zoom);
+        intent.putExtra("is_parked_location", isParked);
 
         // Shared element transition for seamless animation
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -320,7 +340,40 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 btnPower.setColorFilter(null);
                 tvDeviceName.setText("Connecting...");
             }
+            // Update map centering and markers based on connection status
+            updateMapForConnectionStatus();
         });
+    }
+
+    private void updateMapForConnectionStatus() {
+        if (mapplsMap == null) return;
+
+        if (!isConnected) {
+            SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+            float parkedLat = prefs.getFloat("last_parked_lat", 0.0f);
+            float parkedLng = prefs.getFloat("last_parked_lng", 0.0f);
+
+            if (parkedLat != 0.0f && parkedLng != 0.0f) {
+                LatLng parkedLatLng = new LatLng(parkedLat, parkedLng);
+
+                // Add or update marker
+                if (parkedMarker != null) {
+                    mapplsMap.removeMarker(parkedMarker);
+                }
+                parkedMarker = mapplsMap.addMarker(new MarkerOptions()
+                        .position(parkedLatLng)
+                        .title("Last Parked Location"));
+
+                // Center map
+                mapplsMap.animateCamera(CameraUpdateFactory.newLatLngZoom(parkedLatLng, 13.0));
+            }
+        } else {
+            // If connected, remove parked marker
+            if (parkedMarker != null) {
+                mapplsMap.removeMarker(parkedMarker);
+                parkedMarker = null;
+            }
+        }
     }
 
     private void updateVehicleData(int speed, int odo, float tripA, float tripB, char gear, int fuel, float mileageKmL) {
@@ -412,13 +465,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onStyleLoaded(@androidx.annotation.NonNull Style style) {
                 enableLocationComponent(style);
+                updateMapForConnectionStatus();
             }
         });
     }
 
     @Override
     public void onMapError(int errorCode, String errorMessage) {
-        // Handle map error
+        Log.e("MainActivity", "Mappls Map Error (" + errorCode + "): " + errorMessage);
+        runOnUiThread(() -> Toast.makeText(this, "Map Error: " + errorMessage, Toast.LENGTH_LONG).show());
     }
 
     private void enableLocationComponent(Style style) {
@@ -503,5 +558,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // P1 + P2: Refresh Last Parked time and Trip count every time we return here
         refreshDashboardCards();
+
+        // Update map for connection status
+        updateMapForConnectionStatus();
     }
 }

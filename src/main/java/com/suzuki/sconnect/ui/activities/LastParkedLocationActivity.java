@@ -231,6 +231,7 @@ public class LastParkedLocationActivity extends AppCompatActivity implements OnM
     @Override
     public void onMapError(int errorCode, String errorMessage) {
         Log.e(TAG, "Map error (" + errorCode + "): " + errorMessage);
+        runOnUiThread(() -> Toast.makeText(this, "Map Error: " + errorMessage, Toast.LENGTH_LONG).show());
     }
 
     private void enableLocationComponent(Style style) {

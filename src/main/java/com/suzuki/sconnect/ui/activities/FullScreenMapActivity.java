@@ -4,6 +4,7 @@ import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.ui.adapters.SearchResultAdapter;
 
 import android.app.ActivityOptions;
+import android.util.Log;
 import android.content.Intent;
 import android.location.Location;
 import android.os.Build;
@@ -142,6 +143,13 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
                 .zoom(zoom)
                 .build());
 
+        // Show marker if we're looking at the parked location
+        if (getIntent().getBooleanExtra("is_parked_location", false)) {
+            map.addMarker(new MarkerOptions()
+                    .position(initialPosition)
+                    .title("Last Parked Location"));
+        }
+
         map.getStyle(new Style.OnStyleLoaded() {
             @Override
             public void onStyleLoaded(@NonNull Style style) {
@@ -161,7 +169,8 @@ public class FullScreenMapActivity extends AppCompatActivity implements OnMapRea
 
     @Override
     public void onMapError(int errorCode, String errorMessage) {
-        // Handle map error
+        Log.e("FullScreenMap", "Mappls Map Error (" + errorCode + "): " + errorMessage);
+        runOnUiThread(() -> Toast.makeText(this, "Map Error: " + errorMessage, Toast.LENGTH_LONG).show());
     }
 
     private void enableLocationComponent(Style style) {

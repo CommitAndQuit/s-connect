@@ -227,6 +227,7 @@ public class NavigationActivity extends AppCompatActivity
     @Override
     public void onMapError(int code, String message) {
         Log.e(TAG, "Map Error (" + code + "): " + message);
+        runOnUiThread(() -> Toast.makeText(this, "Map Error: " + message, Toast.LENGTH_LONG).show());
     }
 
     private void setupNavigation() {
