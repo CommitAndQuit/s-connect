@@ -75,7 +75,8 @@ public class NavigationActivity extends AppCompatActivity
     private final BroadcastReceiver navUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent == null) return;
+            if (intent == null)
+                return;
             String action = intent.getAction();
 
             if (NavigationService.ACTION_NAV_UPDATE.equals(action)) {
@@ -108,8 +109,10 @@ public class NavigationActivity extends AppCompatActivity
         originName = getIntent().getStringExtra("origin_name");
         destName = getIntent().getStringExtra("destination_name");
 
-        if (originName == null) originName = "Start";
-        if (destName == null) destName = "Destination";
+        if (originName == null)
+            originName = "Start";
+        if (destName == null)
+            destName = "Destination";
 
         initUI(savedInstanceState);
 
@@ -164,9 +167,7 @@ public class NavigationActivity extends AppCompatActivity
     private void recenterCamera() {
         if (locationComponent != null && locationComponent.isLocationComponentActivated()
                 && locationComponent.getLastKnownLocation() != null) {
-            android.location.Location loc = locationComponent.getLastKnownLocation();
-            mapplsMap.animateCamera(CameraUpdateFactory.newLatLng(
-                    new LatLng(loc.getLatitude(), loc.getLongitude())));
+            applyTrackingCameraMode();
         } else {
             Toast.makeText(this, "Current location not available", Toast.LENGTH_SHORT).show();
         }
@@ -190,7 +191,8 @@ public class NavigationActivity extends AppCompatActivity
     }
 
     private void enableLocationComponent() {
-        if (mapplsMap == null) return;
+        if (mapplsMap == null)
+            return;
         try {
             locationComponent = mapplsMap.getLocationComponent();
             if (locationComponent != null && mapplsMap.getStyle() != null) {
@@ -201,7 +203,7 @@ public class NavigationActivity extends AppCompatActivity
                 locationComponent.activateLocationComponent(options);
                 locationComponent.setLocationComponentEnabled(true);
                 locationComponent.setRenderMode(RenderMode.GPS);
-                
+
                 if (pendingTrackingMode) {
                     pendingTrackingMode = false;
                     applyTrackingCameraMode();
@@ -213,15 +215,12 @@ public class NavigationActivity extends AppCompatActivity
     }
 
     private void applyTrackingCameraMode() {
-        if (locationComponent == null || !locationComponent.isLocationComponentActivated()) return;
+        if (locationComponent == null || !locationComponent.isLocationComponentActivated())
+            return;
         locationComponent.setCameraMode(CameraMode.TRACKING_GPS);
-        int topPadding = (int) (mapView.getHeight() * 0.65);
-        mapplsMap.setPadding(0, topPadding, 0, 0);
-        mapplsMap.animateCamera(CameraUpdateFactory.newCameraPosition(
-                new CameraPosition.Builder(mapplsMap.getCameraPosition())
-                        .tilt(45)
-                        .zoom(18.5)
-                        .build()));
+        mapplsMap.setPadding(0, 0, 0, 0);
+        locationComponent.zoomWhileTracking(17.5);
+        locationComponent.tiltWhileTracking(45);
     }
 
     @Override
@@ -237,7 +236,8 @@ public class NavigationActivity extends AppCompatActivity
                 .steps(true)
                 .showStartNavigation(true)
                 .profile(DirectionsCriteria.PROFILE_BIKING)
-                .annotation(Arrays.asList(DirectionsCriteria.ANNOTATION_CONGESTION, DirectionsCriteria.ANNOTATION_DURATION))
+                .annotation(
+                        Arrays.asList(DirectionsCriteria.ANNOTATION_CONGESTION, DirectionsCriteria.ANNOTATION_DURATION))
                 .destination(destination);
 
         directionFragment = DirectionFragment.newInstance(builder.build());
@@ -268,13 +268,17 @@ public class NavigationActivity extends AppCompatActivity
             public void onRouteSuccess(DirectionsResponse response) {
                 runOnUiThread(() -> startActualNavigation(response.routes().get(index)));
             }
-            @Override public void onRouteStringError(String error) {}
+
+            @Override
+            public void onRouteStringError(String error) {
+            }
         });
     }
 
     private void startActualNavigation(DirectionsRoute route) {
-        if (route == null) return;
-        
+        if (route == null)
+            return;
+
         isNavigationStarted = true;
         activeRoute = route;
 
@@ -308,7 +312,8 @@ public class NavigationActivity extends AppCompatActivity
 
     private void updateUIFromCachedState() {
         NavigationStateHolder state = NavigationStateHolder.getInstance();
-        if (state.getLastDistance() != -1 && state.getLastInstruction() != null && !state.getLastInstruction().isEmpty()) {
+        if (state.getLastDistance() != -1 && state.getLastInstruction() != null
+                && !state.getLastInstruction().isEmpty()) {
             updateGuidanceUI(state.getLastDistance(), state.getLastTurnIcon(), state.getLastInstruction());
         }
     }
@@ -368,15 +373,16 @@ public class NavigationActivity extends AppCompatActivity
                 return R.drawable.ic_nav_destination;
 
             default:
-                return 0; 
+                return 0;
         }
     }
 
     private void stopNavigationUI() {
         isNavigationStarted = false;
-        
+
         for (Polyline polyline : routePolylines) {
-            if (mapplsMap != null) mapplsMap.removePolyline(polyline);
+            if (mapplsMap != null)
+                mapplsMap.removePolyline(polyline);
         }
         routePolylines.clear();
 
@@ -389,7 +395,8 @@ public class NavigationActivity extends AppCompatActivity
             locationComponent.setCameraMode(CameraMode.NONE);
         }
 
-        if (guidanceCard != null) guidanceCard.setVisibility(android.view.View.GONE);
+        if (guidanceCard != null)
+            guidanceCard.setVisibility(android.view.View.GONE);
 
         Fragment fragment = getSupportFragmentManager().findFragmentByTag(DirectionFragment.class.getSimpleName());
         if (fragment != null) {
@@ -400,7 +407,8 @@ public class NavigationActivity extends AppCompatActivity
     }
 
     private void drawRouteOnMap(DirectionsRoute route) {
-        if (mapplsMap == null || route == null) return;
+        if (mapplsMap == null || route == null)
+            return;
 
         for (Polyline polyline : routePolylines) {
             mapplsMap.removePolyline(polyline);
@@ -409,10 +417,12 @@ public class NavigationActivity extends AppCompatActivity
 
         try {
             String encodedPolyline = route.geometry();
-            if (encodedPolyline == null || encodedPolyline.isEmpty()) return;
+            if (encodedPolyline == null || encodedPolyline.isEmpty())
+                return;
 
             List<LatLng> routePoints = decodePolyline(encodedPolyline);
-            if (routePoints.isEmpty()) return;
+            if (routePoints.isEmpty())
+                return;
 
             PolylineOptions polylineOptions = new PolylineOptions()
                     .addAll(routePoints)
@@ -439,7 +449,8 @@ public class NavigationActivity extends AppCompatActivity
                 } while (b >= 0x20);
                 lat += ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
 
-                shift = 0; result = 0;
+                shift = 0;
+                result = 0;
                 do {
                     b = encoded.charAt(index++) - 63;
                     result |= (b & 0x1f) << shift;
@@ -456,9 +467,11 @@ public class NavigationActivity extends AppCompatActivity
     }
 
     private void addDestinationMarker() {
-        if (mapplsMap == null || destLat == 0 || destLng == 0) return;
+        if (mapplsMap == null || destLat == 0 || destLng == 0)
+            return;
         try {
-            if (destinationMarker != null) mapplsMap.removeMarker(destinationMarker);
+            if (destinationMarker != null)
+                mapplsMap.removeMarker(destinationMarker);
             destinationMarker = mapplsMap.addMarker(new MarkerOptions()
                     .position(new LatLng(destLat, destLng))
                     .title("Destination"));
@@ -470,45 +483,53 @@ public class NavigationActivity extends AppCompatActivity
     @Override
     protected void onStart() {
         super.onStart();
-        if (mapView != null) mapView.onStart();
+        if (mapView != null)
+            mapView.onStart();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (mapView != null) mapView.onResume();
+        if (mapView != null)
+            mapView.onResume();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (mapView != null) mapView.onPause();
+        if (mapView != null)
+            mapView.onPause();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if (mapView != null) mapView.onStop();
+        if (mapView != null)
+            mapView.onStop();
     }
 
     @Override
     public void onLowMemory() {
         super.onLowMemory();
-        if (mapView != null) mapView.onLowMemory();
+        if (mapView != null)
+            mapView.onLowMemory();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mapView != null) mapView.onDestroy();
+        if (mapView != null)
+            mapView.onDestroy();
         try {
             unregisterReceiver(navUpdateReceiver);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     @Override
     protected void onSaveInstanceState(android.os.Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (mapView != null) mapView.onSaveInstanceState(outState);
+        if (mapView != null)
+            mapView.onSaveInstanceState(outState);
     }
 }

@@ -367,23 +367,6 @@
                     android:layout_height="120dp"
                     android:background="@drawable/map_gradient_overlay"
                     android:layout_gravity="top" />
-
-                <!-- Tap to View Overlay -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Tap to view full map"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"
-                    android:background="@drawable/card_background"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
-                    android:layout_gravity="bottom|center_horizontal"
-                    android:layout_marginBottom="16dp"
-                    android:elevation="4dp" />
-
             </FrameLayout>
 
         </LinearLayout>
