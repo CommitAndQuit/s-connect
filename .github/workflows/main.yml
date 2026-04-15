@@ -2,6 +2,10 @@ name: Build and Release APK
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag for the release (e.g., v1.2.3)'
+        required: true
   release:
     types: [published]
 
