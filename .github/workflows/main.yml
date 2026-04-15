@@ -26,9 +26,6 @@ jobs:
           echo "mappls.map.sdk.key=${{ secrets.MAPPLS_MAP_SDK_KEY }}" >> local.properties
           echo "mappls.rest.api.key=${{ secrets.MAPPLS_REST_API_KEY }}" >> local.properties
 
-      - name: Regenerate Gradle wrapper
-        run: gradle wrapper --gradle-version 8.1.0
-
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
