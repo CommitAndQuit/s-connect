@@ -17,6 +17,9 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
+          
+      - name: Regenerate Gradle wrapper
+        run: gradle wrapper --gradle-version 8.1.0
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
