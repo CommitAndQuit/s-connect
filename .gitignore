@@ -63,3 +63,4 @@ app/build/
 # Temporary files
 *.tmp
 *.bak
+dummy.keystore
