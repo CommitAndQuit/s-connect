@@ -3,7 +3,7 @@ package com.suzuki.sconnect.ui.activities;
 import com.suzuki.sconnect.BuildConfig;
 import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.ble.BleConnectionService;
-import com.suzuki.sconnect.ble.SuzukiBleScanner;
+import com.suzuki.sconnect.ble.VehicleBleScanner;
 import com.suzuki.sconnect.ui.adapters.DeviceAdapter;
 import com.suzuki.sconnect.utils.VehicleStateHolder;
 
@@ -67,7 +67,7 @@ import io.realm.Realm;
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final int REQUEST_PERMISSIONS = 100;
 
-    private SuzukiBleScanner scanner;
+    private VehicleBleScanner scanner;
     private BluetoothDevice selectedDevice;
 
     // UI Elements
@@ -124,7 +124,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         initializeViews(savedInstanceState);
         checkPermissions();
 
-        scanner = new SuzukiBleScanner();
+        scanner = new VehicleBleScanner();
+        SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+        String brandName = prefs.getString("brand_name", "suzuki");
+        scanner.setBrandName(brandName);
     }
 
     private void initializeViews(Bundle savedInstanceState) {
@@ -276,7 +279,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (pb != null)
             pb.setVisibility(View.VISIBLE);
 
-        scanner.startScan(this, new SuzukiBleScanner.ScanResultListener() {
+        scanner.startScan(this, new VehicleBleScanner.ScanResultListener() {
             @Override
             public void onDeviceFound(BluetoothDevice device, String deviceName, int rssi) {
                 runOnUiThread(() -> {

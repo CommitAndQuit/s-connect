@@ -29,6 +29,24 @@ public class SuzukiPacketParser {
     }
 
     /**
+     * Parse Vehicle Status Packet (?7) and return generic VehicleData
+     */
+    public static com.suzuki.sconnect.ble.protocol.VehicleData parseVehicleStatusPacketGeneric(byte[] packet) {
+        VehicleData oldData = parseVehicleStatusPacket(packet);
+        if (oldData == null) return null;
+        com.suzuki.sconnect.ble.protocol.VehicleData newData = new com.suzuki.sconnect.ble.protocol.VehicleData();
+        newData.speed = oldData.speed;
+        newData.odometer = oldData.odometer;
+        newData.tripA = oldData.tripA;
+        newData.tripB = oldData.tripB;
+        newData.gear = oldData.gear;
+        newData.fuelLevel = oldData.fuelLevel;
+        newData.fuelConsumption = oldData.fuelConsumption;
+        newData.isValid = oldData.isValid;
+        return newData;
+    }
+
+    /**
      * Parse Vehicle Status Packet (?7)
      */
     public static VehicleData parseVehicleStatusPacket(byte[] packet) {

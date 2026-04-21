@@ -169,7 +169,6 @@ public class BleConnectionService extends Service {
         }
 
         if (device != null) {
-            SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
             brandName = prefs.getString("brand_name", "suzuki");
             protocol = VehicleProtocolFactory.getProtocol(brandName);
             usesInvertedChecksum = protocol.usesInvertedChecksum(deviceName);

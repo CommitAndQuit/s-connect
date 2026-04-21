@@ -1,0 +1,10 @@
+--- src/main/java/com/suzuki/sconnect/ble/BleConnectionService.java
++++ src/main/java/com/suzuki/sconnect/ble/BleConnectionService.java
+@@ -165,6 +165,7 @@
+         }
+
+         if (device != null) {
++            SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+             brandName = prefs.getString("brand_name", "suzuki");
+             protocol = VehicleProtocolFactory.getProtocol(brandName);
+             usesInvertedChecksum = protocol.usesInvertedChecksum(deviceName);

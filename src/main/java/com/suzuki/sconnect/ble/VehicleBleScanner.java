@@ -1,6 +1,8 @@
 package com.suzuki.sconnect.ble;
 
 import com.suzuki.sconnect.utils.DebugLogger;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocol;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocolFactory;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -13,15 +15,17 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 
-/**
- * BLE Scanner with extensive device info logging
- */
-public class SuzukiBleScanner {
+public class VehicleBleScanner {
     private static final long SCAN_DURATION_MS = 10000; // 10 seconds for debugging
     private BluetoothLeScanner scanner;
     private Handler handler = new Handler(Looper.getMainLooper());
     private ScanCallback scanCallback;
     private boolean isScanning = false;
+    private String brandName;
+
+    public void setBrandName(String brandName) {
+        this.brandName = brandName;
+    }
 
     public interface ScanResultListener {
         void onDeviceFound(BluetoothDevice device, String deviceName, int rssi);
@@ -59,6 +63,8 @@ public class SuzukiBleScanner {
                         : device.getName();
                 int rssi = result.getRssi();
 
+                VehicleProtocol protocol = VehicleProtocolFactory.getProtocol(brandName);
+
                 DebugLogger.d("Scanner", String.format("Found device: %s (RSSI: %d dBm)",
                         deviceName != null ? deviceName : "Unknown", rssi));
 
@@ -66,11 +72,11 @@ public class SuzukiBleScanner {
                     DebugLogger.d("Scanner", "  Address: " + device.getAddress());
                     DebugLogger.d("Scanner", "  Type: " + getDeviceType(device.getType()));
 
-                    if (isSuzukiDevice(deviceName)) {
-                        DebugLogger.i("Scanner", "✓ SUZUKI DEVICE FOUND: " + deviceName);
+                    if (protocol.isDeviceSupported(deviceName)) {
+                        DebugLogger.i("Scanner", "✓ VEHICLE DEVICE FOUND: " + deviceName);
                         listener.onDeviceFound(device, deviceName, rssi);
                     } else {
-                        DebugLogger.d("Scanner", "  Not a Suzuki device (no AS/BS/SBM prefix)");
+                        DebugLogger.d("Scanner", "  Not a supported device for brand " + brandName);
                     }
                 }
             }
@@ -117,19 +123,6 @@ public class SuzukiBleScanner {
                 DebugLogger.e("Scanner", "Permission denied when stopping scan", e);
             }
         }
-    }
-
-    /**
-     * Check if device name matches Suzuki patterns
-     * Prefixes: AS (Access 125), BS (Avenis), SBM (V-STROM SX / Suzuki Bike Models)
-     */
-    private boolean isSuzukiDevice(String name) {
-        return name != null && (name.contains("_AS") ||
-                name.contains("_BS") ||
-                name.contains("_SBM") ||
-                name.contains("AS") ||
-                name.contains("BS") ||
-                name.contains("SBM"));
     }
 
     private String getDeviceType(int type) {

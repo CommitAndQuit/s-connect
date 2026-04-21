@@ -1,0 +1,30 @@
+--- src/main/java/com/suzuki/sconnect/ble/protocol/VehicleProtocol.java
++++ src/main/java/com/suzuki/sconnect/ble/protocol/VehicleProtocol.java
+@@ -12,9 +12,8 @@
+     byte[] buildCallPacket(String name, int status, boolean usesInvertedChecksum);
+     byte[] buildMissedCallPacket(String name, int count, boolean usesInvertedChecksum);
+     byte[] buildNotificationPacket(String title, int count, int type, boolean usesInvertedChecksum);
+-    byte[] buildNavigationPacket(int totalDistance, int timeToDest, int etaHour, int etaMinute,
+-            boolean isAm, int directionStatus, int nextTurnDistance,
+-            boolean usesInvertedChecksum);
++    byte[] buildNavigationPacket(int distanceMeters, int totalDistanceRemaining, int turnIconId,
++            String etaStr, String statusCode, boolean usesInvertedChecksum);
+
+     // Packet Parsers
+     VehicleData parseVehicleStatusPacket(byte[] packet);
+--- src/main/java/com/suzuki/sconnect/ble/protocol/SuzukiProtocol.java
++++ src/main/java/com/suzuki/sconnect/ble/protocol/SuzukiProtocol.java
+@@ -33,10 +33,9 @@
+     }
+
+     @Override
+-    public byte[] buildNavigationPacket(int totalDistance, int timeToDest, int etaHour, int etaMinute,
+-            boolean isAm, int directionStatus, int nextTurnDistance,
+-            boolean usesInvertedChecksum) {
+-        return SuzukiPacketBuilder.buildNavigationPacket(totalDistance, timeToDest, etaHour, etaMinute, isAm, directionStatus, nextTurnDistance, usesInvertedChecksum);
++    public byte[] buildNavigationPacket(int distanceMeters, int totalDistanceRemaining, int turnIconId,
++            String etaStr, String statusCode, boolean usesInvertedChecksum) {
++        return SuzukiPacketBuilder.buildNavigationPacket(distanceMeters, totalDistanceRemaining, turnIconId, etaStr, statusCode, usesInvertedChecksum);
+     }
+
+     @Override

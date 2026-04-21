@@ -1,0 +1,11 @@
+--- src/main/java/com/suzuki/sconnect/ble/VehicleBleScanner.java
++++ src/main/java/com/suzuki/sconnect/ble/VehicleBleScanner.java
+@@ -125,6 +125,8 @@
+         }
+     }
+
++    private String getDeviceType(int type) {
++        switch (type) {
+             case BluetoothDevice.DEVICE_TYPE_CLASSIC:
+                 return "Classic";
+             case BluetoothDevice.DEVICE_TYPE_LE:
