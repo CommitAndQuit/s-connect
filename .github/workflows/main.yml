@@ -59,7 +59,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git tag -f ${{ steps.tagger.outputs.tag }}
-          git push https://x-access-token:${{ secrets.PAT }}@github.com/CommitAndQuit/s-connect.git ${{ steps.tagger.outputs.tag }} --force
+          git push https://x-access-token:${{ secrets.S_CONENCT_DEBUG }}@github.com/CommitAndQuit/s-connect.git ${{ steps.tagger.outputs.tag }} --force
           
       - name: Wait for tag to propagate
         run: sleep 5
@@ -71,4 +71,4 @@ jobs:
             --title "Debug Release ${{ steps.tagger.outputs.tag }}" \
             --notes "Automated debug build"
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
+          GITHUB_TOKEN: ${{ secrets.S_CONENCT_DEBUG }}
