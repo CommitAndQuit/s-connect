@@ -50,13 +50,9 @@ jobs:
         env:
           SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY_BASE64 }}
 
-      - name: Build signed APK
+      - name: Build Debug APK
         run: |
-          ./gradlew assembleRelease \
-            -PRELEASE_STORE_FILE=signing-key.jks \
-            -PRELEASE_STORE_PASSWORD="${{ secrets.SIGNING_KEY_PASSWORD }}" \
-            -PRELEASE_KEY_ALIAS="${{ secrets.SIGNING_KEY_ALIAS }}" \
-            -PRELEASE_KEY_PASSWORD="${{ secrets.SIGNING_KEY_ALIAS_PASSWORD }}"
+          ./gradlew assembleDebug
 
       - name: Create Git tag
         run: |
@@ -71,8 +67,8 @@ jobs:
       - name: Create GitHub Release via CLI
         run: |
           gh release create ${{ steps.tagger.outputs.tag }} \
-            build/outputs/apk/release/*.apk \
-            --title "Release ${{ steps.tagger.outputs.tag }}" \
-            --notes "Automated release"
+            build/outputs/apk/debug/*.apk \
+            --title "Debug Release ${{ steps.tagger.outputs.tag }}" \
+            --notes "Automated debug build"
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
