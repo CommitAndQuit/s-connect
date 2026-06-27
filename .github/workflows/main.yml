@@ -53,10 +53,10 @@ jobs:
       - name: Build signed APK
         run: |
           ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=signing-key.jks \
-            -Pandroid.injected.signing.store.password="${{ secrets.SIGNING_KEY_PASSWORD }}" \
-            -Pandroid.injected.signing.key.alias="${{ secrets.SIGNING_KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.alias.password="${{ secrets.SIGNING_KEY_ALIAS_PASSWORD }}"
+            -PRELEASE_STORE_FILE=signing-key.jks \
+            -PRELEASE_STORE_PASSWORD="${{ secrets.SIGNING_KEY_PASSWORD }}" \
+            -PRELEASE_KEY_ALIAS="${{ secrets.SIGNING_KEY_ALIAS }}" \
+            -PRELEASE_KEY_PASSWORD="${{ secrets.SIGNING_KEY_ALIAS_PASSWORD }}"
 
       - name: Create Git tag
         run: |

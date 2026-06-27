@@ -42,10 +42,10 @@ android {
 
     signingConfigs {
         release {
-            storeFile file("dummy.keystore")
-            storePassword "dummypass"
-            keyAlias "dummy"
-            keyPassword "dummypass"
+            storeFile file(project.hasProperty('RELEASE_STORE_FILE') ? project.getProperty('RELEASE_STORE_FILE') : "dummy.keystore")
+            storePassword project.hasProperty('RELEASE_STORE_PASSWORD') ? project.getProperty('RELEASE_STORE_PASSWORD') : "dummypass"
+            keyAlias project.hasProperty('RELEASE_KEY_ALIAS') ? project.getProperty('RELEASE_KEY_ALIAS') : "dummy"
+            keyPassword project.hasProperty('RELEASE_KEY_PASSWORD') ? project.getProperty('RELEASE_KEY_PASSWORD') : "dummypass"
         }
     }
 
