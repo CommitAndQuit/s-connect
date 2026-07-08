@@ -74,4 +74,4 @@ jobs:
             --title "Debug Release ${{ steps.tagger.outputs.tag }}" \
             --notes "Automated debug build"
         env:
-          GITHUB_TOKEN: ${{ secrets.S_CONENCT_DEBUG }}
+          GH_TOKEN: ${{ secrets.PAT }}
