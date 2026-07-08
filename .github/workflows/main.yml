@@ -16,6 +16,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
 
       - name: Determine Tag
         id: tagger
@@ -59,7 +62,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git tag -f ${{ steps.tagger.outputs.tag }}
-          git push https://x-access-token:${{ secrets.S_CONENCT_DEBUG }}@github.com/CommitAndQuit/s-connect.git ${{ steps.tagger.outputs.tag }} --force
+          git push https://x-access-token:${{ secrets.PAT }}@github.com/CommitAndQuit/s-connect.git ${{ steps.tagger.outputs.tag }} --force
           
       - name: Wait for tag to propagate
         run: sleep 5
