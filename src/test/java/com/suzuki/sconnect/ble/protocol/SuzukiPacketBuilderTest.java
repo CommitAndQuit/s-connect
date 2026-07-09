@@ -12,7 +12,7 @@ public class SuzukiPacketBuilderTest {
         String eta = "1230PM";
         String status = "1";
 
-        byte[] packet = SuzukiPacketBuilder.buildNavigationPacket(distance, iconId, eta, status, false);
+        byte[] packet = SuzukiPacketBuilder.buildNavigationPacket(distance, distance, iconId, eta, status, false);
 
         assertNotNull(packet);
         assertEquals(30, packet.length);
@@ -53,7 +53,7 @@ public class SuzukiPacketBuilderTest {
     @Test
     public void testBuildNavigationPacket_overrideIcon() {
         // When status is not '1', '3', or '5', icon should be overridden to NONE
-        byte[] packet = SuzukiPacketBuilder.buildNavigationPacket(500, 5, "1230PM", "2", false);
+        byte[] packet = SuzukiPacketBuilder.buildNavigationPacket(500, 500, 5, "1230PM", "2", false);
         assertEquals((byte) SuzukiPacketBuilder.TurnIcon.NONE, packet[2]);
     }
 

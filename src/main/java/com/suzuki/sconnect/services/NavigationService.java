@@ -31,7 +31,8 @@ import com.mappls.sdk.services.api.directions.models.DirectionsResponse;
 import com.mappls.sdk.services.api.directions.models.DirectionsRoute;
 import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.ble.BleConnectionService;
-import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocol;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocolFactory;
 import com.suzuki.sconnect.data.model.TripRecord;
 import com.suzuki.sconnect.ui.activities.NavigationActivity;
 import com.suzuki.sconnect.utils.MapplsRouteManager;
@@ -319,7 +320,10 @@ public class NavigationService extends Service implements NavigationSession.Navi
             else if (!hasGps) statusCode = "4";
             else statusCode = "1";
 
-            byte[] packet = SuzukiPacketBuilder.buildNavigationPacket(
+            SharedPreferences prefsObj = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+            String brandName = prefsObj.getString("brand_name", "suzuki");
+            VehicleProtocol protocol = VehicleProtocolFactory.getProtocol(brandName);
+            byte[] packet = protocol.buildNavigationPacket(
                     lastDistance != -1 ? lastDistance : 0,
                     lastTotalDistance != -1 ? lastTotalDistance : 0,
                     lastTurnIcon != -1 ? lastTurnIcon : 46,
@@ -339,7 +343,10 @@ public class NavigationService extends Service implements NavigationSession.Navi
         boolean usesImg = prefs.getBoolean("usesInvertedChecksum", false);
         String userName = prefs.getString("user_name", "USER");
 
-        byte[] packet = SuzukiPacketBuilder.buildIdentificationPacket(userName, false, usesImg);
+        SharedPreferences prefsObj = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+        String brandName = prefsObj.getString("brand_name", "suzuki");
+        VehicleProtocol protocol = VehicleProtocolFactory.getProtocol(brandName);
+        byte[] packet = protocol.buildIdentificationPacket(userName, false, usesImg);
         Intent intent = new Intent(BleConnectionService.ACTION_SEND_PACKET);
         intent.setPackage(getPackageName());
         intent.putExtra(BleConnectionService.EXTRA_PACKET, packet);

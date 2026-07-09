@@ -1,7 +1,8 @@
 package com.suzuki.sconnect.notifications;
 
 import com.suzuki.sconnect.ble.BleConnectionService;
-import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocol;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocolFactory;
 import com.suzuki.sconnect.utils.DebugLogger;
 
 import android.app.Notification;
@@ -87,7 +88,10 @@ public class AppNotificationService extends NotificationListenerService {
         // We will prioritize Title (Sender Name)
         String display = title != null ? title : (text != null ? text : "Message");
 
-        byte[] packet = SuzukiPacketBuilder.buildNotificationPacket(display, count, type, usesInvertedChecksum);
+        SharedPreferences prefsObj = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+        String brandName = prefsObj.getString("brand_name", "suzuki");
+        VehicleProtocol protocol = VehicleProtocolFactory.getProtocol(brandName);
+        byte[] packet = protocol.buildNotificationPacket(display, count, type, usesInvertedChecksum);
 
         // Send to BLE Service
         Intent intent = new Intent(BleConnectionService.ACTION_SEND_PACKET);

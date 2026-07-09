@@ -1,7 +1,8 @@
 package com.suzuki.sconnect.notifications;
 
 import com.suzuki.sconnect.ble.BleConnectionService;
-import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocol;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocolFactory;
 import com.suzuki.sconnect.utils.DebugLogger;
 
 import android.content.BroadcastReceiver;
@@ -50,10 +51,16 @@ public class AppCallReceiver extends BroadcastReceiver {
 
             if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
                 // Status 1 = Incoming
-                packet = SuzukiPacketBuilder.buildCallPacket(name, 1, usesInvertedChecksum);
+                SharedPreferences prefsObj1 = context.getSharedPreferences("SConnectPrefs", Context.MODE_PRIVATE);
+                String brandName1 = prefsObj1.getString("brand_name", "suzuki");
+                VehicleProtocol protocol1 = VehicleProtocolFactory.getProtocol(brandName1);
+                packet = protocol1.buildCallPacket(name, 1, usesInvertedChecksum);
             } else if (TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
                 // Status 2 = Ongoing
-                packet = SuzukiPacketBuilder.buildCallPacket(name, 2, usesInvertedChecksum);
+                SharedPreferences prefsObj2 = context.getSharedPreferences("SConnectPrefs", Context.MODE_PRIVATE);
+                String brandName2 = prefsObj2.getString("brand_name", "suzuki");
+                VehicleProtocol protocol2 = VehicleProtocolFactory.getProtocol(brandName2);
+                packet = protocol2.buildCallPacket(name, 2, usesInvertedChecksum);
             } else if (TelephonyManager.EXTRA_STATE_IDLE.equals(state)) {
                 // Missed call logic usually requires tracking state transitions (Ringing ->
                 // Idle without Offhook)

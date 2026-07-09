@@ -1,7 +1,7 @@
 package com.suzuki.sconnect.ble;
 
-import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
-import com.suzuki.sconnect.ble.protocol.SuzukiPacketParser;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocol;
+import com.suzuki.sconnect.ble.protocol.VehicleData;
 import com.suzuki.sconnect.utils.DebugLogger;
 
 import android.bluetooth.BluetoothGatt;
@@ -16,7 +16,7 @@ import java.util.UUID;
 /**
  * GATT Callback with comprehensive state machine logging
  */
-public class SuzukiGattCallback extends BluetoothGattCallback {
+public class VehicleGattCallback extends BluetoothGattCallback {
     private static final UUID CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private static final int MTU_SIZE = 250;
 
@@ -24,6 +24,7 @@ public class SuzukiGattCallback extends BluetoothGattCallback {
     private BluetoothGattCharacteristic notifyCharacteristic;
     private ConnectionListener listener;
     private boolean usesInvertedChecksum;
+    private VehicleProtocol protocol;
     private String currentState = "DISCONNECTED";
 
     public interface ConnectionListener {
@@ -33,12 +34,13 @@ public class SuzukiGattCallback extends BluetoothGattCallback {
 
         void onReady(); // Called when ready to send/receive data
 
-        void onVehicleDataReceived(SuzukiPacketParser.VehicleData data);
+        void onVehicleDataReceived(VehicleData data);
 
         void onError(String error);
     }
 
-    public SuzukiGattCallback(ConnectionListener listener, boolean usesInvertedChecksum) {
+    public VehicleGattCallback(ConnectionListener listener, boolean usesInvertedChecksum, VehicleProtocol protocol) {
+        this.protocol = protocol;
         this.listener = listener;
         this.usesInvertedChecksum = usesInvertedChecksum;
         DebugLogger.i("GattCallback",
@@ -251,11 +253,11 @@ public class SuzukiGattCallback extends BluetoothGattCallback {
         DebugLogger.logPacket("GATT", "← Received from vehicle", data);
 
         // Parse vehicle data
-        SuzukiPacketParser.VehicleData vehicleData = SuzukiPacketParser.parseVehicleStatusPacket(data);
+        VehicleData vehicleData = protocol.parseVehicleStatusPacket(data);
 
         if (vehicleData.isValid) {
             // Validate checksum
-            boolean checksumValid = SuzukiPacketParser.validateChecksum(data, usesInvertedChecksum);
+            boolean checksumValid = protocol.validateChecksum(data, usesInvertedChecksum);
             if (checksumValid) {
                 listener.onVehicleDataReceived(vehicleData);
             } else {

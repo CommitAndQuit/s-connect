@@ -2,8 +2,9 @@ package com.suzuki.sconnect.ble;
 
 import com.suzuki.sconnect.R;
 import com.suzuki.sconnect.ui.activities.MainActivity;
-import com.suzuki.sconnect.ble.protocol.SuzukiPacketBuilder;
-import com.suzuki.sconnect.ble.protocol.SuzukiPacketParser;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocol;
+import com.suzuki.sconnect.ble.protocol.VehicleProtocolFactory;
+import com.suzuki.sconnect.ble.protocol.VehicleData;
 import com.suzuki.sconnect.utils.DebugLogger;
 import com.suzuki.sconnect.data.model.DailyFuelRecord;
 import com.suzuki.sconnect.utils.VehicleStateHolder;
@@ -56,11 +57,13 @@ public class BleConnectionService extends Service {
     public static final String EXTRA_PACKET = "packet_data";
 
     private BluetoothGatt bluetoothGatt;
-    private SuzukiGattCallback gattCallback;
+    private VehicleGattCallback gattCallback;
     private Handler heartbeatHandler = new Handler(Looper.getMainLooper());
     private Runnable heartbeatRunnable;
     private String userName;
-    private boolean usesInvertedChecksum; // true for 'A' prefix (Access/Burgman), false for 'B' prefix (SBM/Avenis)
+    private boolean usesInvertedChecksum;
+    private VehicleProtocol protocol;
+    private String brandName;
     private boolean isIdentificationSent = false;
     private int heartbeatCount = 0;
 
@@ -166,7 +169,10 @@ public class BleConnectionService extends Service {
         }
 
         if (device != null) {
-            usesInvertedChecksum = SuzukiPacketBuilder.usesInvertedChecksum(deviceName);
+            SharedPreferences prefs = getSharedPreferences("SConnectPrefs", MODE_PRIVATE);
+            brandName = prefs.getString("brand_name", "suzuki");
+            protocol = VehicleProtocolFactory.getProtocol(brandName);
+            usesInvertedChecksum = protocol.usesInvertedChecksum(deviceName);
 
             DebugLogger.i("Service", "Connection parameters:");
             DebugLogger.d("Service", "  Device: " + deviceName);
@@ -192,7 +198,7 @@ public class BleConnectionService extends Service {
         DebugLogger.i("Service", "=== Initiating Connection ===");
         broadcastStateChange("CONNECTING");
 
-        gattCallback = new SuzukiGattCallback(new SuzukiGattCallback.ConnectionListener() {
+        gattCallback = new VehicleGattCallback(new VehicleGattCallback.ConnectionListener() {
             @Override
             public void onConnected() {
                 updateNotification("Connected", "Discovering services...");
@@ -225,7 +231,7 @@ public class BleConnectionService extends Service {
             }
 
             @Override
-            public void onVehicleDataReceived(SuzukiPacketParser.VehicleData data) {
+            public void onVehicleDataReceived(VehicleData data) {
                 DebugLogger.i("Service",
                         String.format(
                                 "onVehicleDataReceived: Speed=%d, ODO=%d, TripA=%.1f, TripB=%.1f, Gear=%c, Fuel=%d",
@@ -311,7 +317,7 @@ public class BleConnectionService extends Service {
                 DebugLogger.e("Service", "Connection error: " + error);
                 broadcastError(error);
             }
-        }, usesInvertedChecksum);
+        }, usesInvertedChecksum, protocol);
 
         try {
             DebugLogger.d("Service", "Calling connectGatt with:");
@@ -340,7 +346,7 @@ public class BleConnectionService extends Service {
         // Decompiled code sends ?6 packet only once (C0704v.java: if (i <= 1) ...
         // this.q++)
         // isNewConnection=true ('F') to force Welcome message/pairing
-        byte[] packet = SuzukiPacketBuilder.buildIdentificationPacket(userName, true, usesInvertedChecksum);
+        byte[] packet = protocol.buildIdentificationPacket(userName, true, usesInvertedChecksum);
         gattCallback.writePacket(bluetoothGatt, packet);
 
         DebugLogger.i("Service", "✓ Identification packet sent");
@@ -436,7 +442,7 @@ public class BleConnectionService extends Service {
                 "Sending heartbeat #%d | time=%s battery=%s speed=%s signal=%s",
                 heartbeatCount, time, batteryStatus, speedStr, lastSignalLevel));
 
-        byte[] packet = SuzukiPacketBuilder.buildHeartbeatPacket(
+        byte[] packet = protocol.buildHeartbeatPacket(
                 batteryStatus, speedStr, lastSignalLevel, time, usesInvertedChecksum);
         gattCallback.writePacket(bluetoothGatt, packet);
     }
