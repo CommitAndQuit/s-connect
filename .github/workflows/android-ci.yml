@@ -66,14 +66,12 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git tag $TAG_NAME
-          echo "::set-output name=tag::$TAG_NAME"
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
       - name: Push tag
-        run: git push origin ${{ steps.tag.outputs.tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
+        run: git push https://x-access-token:${{ secrets.PAT }}@github.com/CommitAndQuit/s-connect.git ${{ steps.tag.outputs.tag }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
