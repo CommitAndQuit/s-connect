@@ -55,7 +55,7 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
-      - name: Create Git tag
+      - name: Create Git tag and push
         id: tag
         run: |
           TAG_NAME="${{ github.event.inputs.tag }}"
@@ -67,6 +67,7 @@ jobs:
           git config user.email "github-actions@github.com"
           git tag $TAG_NAME
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          git push https://x-access-token:${{ secrets.PAT }}@github.com/CommitAndQuit/s-connect.git $TAG_NAME
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
