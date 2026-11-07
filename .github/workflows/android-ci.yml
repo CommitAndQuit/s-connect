@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v3
@@ -68,11 +71,6 @@ jobs:
           git tag $TAG_NAME
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
           git push https://x-access-token:${{ secrets.PAT }}@github.com/CommitAndQuit/s-connect.git $TAG_NAME
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
-
-      - name: Push tag
-        run: git push https://x-access-token:${{ secrets.PAT }}@github.com/CommitAndQuit/s-connect.git ${{ steps.tag.outputs.tag }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
