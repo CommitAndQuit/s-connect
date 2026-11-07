@@ -16,7 +16,7 @@ env:
   MAPPLS_MAP_SDK_KEY: ${{ secrets.MAPPLS_MAP_SDK_KEY }}
   MAPPLS_REST_API_KEY: ${{ secrets.MAPPLS_REST_API_KEY }}
   SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY_BASE64 }}
-  ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+
 
 jobs:
   build:
@@ -43,7 +43,7 @@ jobs:
           MAPPLS_CLIENT_SECRET: ${{ secrets.MAPPLS_CLIENT_SECRET }}
           MAPPLS_MAP_SDK_KEY: ${{ secrets.MAPPLS_MAP_SDK_KEY }}
           MAPPLS_REST_API_KEY: ${{ secrets.MAPPLS_REST_API_KEY }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+        
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
