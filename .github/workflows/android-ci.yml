@@ -1,0 +1,88 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ mainline ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Optional tag for the release (e.g., v1.0.1)'
+        required: false
+        default: ''
+
+env:
+  MAPPLS_CLIENT_ID: ${{ secrets.MAPPLS_CLIENT_ID }}
+  MAPPLS_CLIENT_SECRET: ${{ secrets.MAPPLS_CLIENT_SECRET }}
+  MAPPLS_MAP_SDK_KEY: ${{ secrets.MAPPLS_MAP_SDK_KEY }}
+  MAPPLS_REST_API_KEY: ${{ secrets.MAPPLS_REST_API_KEY }}
+  SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY_BASE64 }}
+  ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Generate local.properties
+        run: |
+          echo "MAPPLS_CLIENT_ID=${MAPPLS_CLIENT_ID}" >> local.properties
+          echo "MAPPLS_CLIENT_SECRET=${MAPPLS_CLIENT_SECRET}" >> local.properties
+          echo "MAPPLS_MAP_SDK_KEY=${MAPPLS_MAP_SDK_KEY}" >> local.properties
+          echo "MAPPLS_REST_API_KEY=${MAPPLS_REST_API_KEY}" >> local.properties
+          echo "sdk.dir=${ANDROID_SDK_ROOT}" >> local.properties
+        env:
+          MAPPLS_CLIENT_ID: ${{ secrets.MAPPLS_CLIENT_ID }}
+          MAPPLS_CLIENT_SECRET: ${{ secrets.MAPPLS_CLIENT_SECRET }}
+          MAPPLS_MAP_SDK_KEY: ${{ secrets.MAPPLS_MAP_SDK_KEY }}
+          MAPPLS_REST_API_KEY: ${{ secrets.MAPPLS_REST_API_KEY }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Decode signing key
+        run: |
+          echo "${{ secrets.SIGNING_KEY_BASE64 }}" | base64 -d > signing-key.jks
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Create Git tag
+        id: tag
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG_NAME" ]; then
+            SHA=$(git rev-parse --short HEAD)
+            TAG_NAME="v1.0.$SHA"
+          fi
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag $TAG_NAME
+          echo "::set-output name=tag::$TAG_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Push tag
+        run: git push origin ${{ steps.tag.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          files: app/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Clean up local.properties
+        run: rm -f local.properties
