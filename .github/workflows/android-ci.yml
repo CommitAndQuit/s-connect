@@ -21,6 +21,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -77,7 +79,7 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.tag.outputs.tag }}
-          files: app/build/outputs/apk/debug/*.apk
+          files: build/outputs/apk/debug/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
